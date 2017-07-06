@@ -9,21 +9,17 @@ import scipy.misc
 import pickle
 import imutils
 import time
-import os
-import random
-import string
-
-import json
-
-from robot import *
 
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import PoseStamped
 
+from config.constants import *
+
+"""
+The DataCollector class polls data from the rostopics periodically. It manages 
+the messages that come from ros.
+"""
 class DataCollector:
-    """
-    The DataCollector class polls data from the rostopics periodically
-    """
 
     def __init__(self, 
                  camera_left_topic="/endoscope/left/",
@@ -32,13 +28,15 @@ class DataCollector:
                  camera_im_str='image_rect_color'):
 
         self.right_image = None
+        self.proc_right_image = None
         self.left_image = None
+        self.proc_left_image = None
+        self.right_contours = []
+        self.left_contours = []
+
         self.info = {'l': None, 'r': None}
         self.bridge = cv_bridge.CvBridge()
         self.timestep = 0
-
-        self.directory = ''.join(random.choice(string.lowercase) for _ in range(9))
-        os.mkdir(self.directory)
 
 
         rospy.Subscriber(camera_left_topic + camera_im_str, Image,
@@ -64,26 +62,43 @@ class DataCollector:
     def right_image_callback(self, msg):
         if rospy.is_shutdown():
             return
+
         self.right_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
+        self.proc_right_image = IMAGE_PREPROCESSING_DEFAULT(self.right_image)
+        self.right_contours = self.get_contours(self.proc_right_image)
 
     def left_image_callback(self, msg):
         if rospy.is_shutdown():
             return
+
         self.left_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
+        self.proc_left_image = IMAGE_PREPROCESSING_DEFAULT(self.left_image)
+        self.left_contours = self.get_contours(self.proc_left_image)
 
 
-    def resetDirectory(self):
-        self.directory = ''.join(random.choice(string.lowercase) for _ in range(9))
-        os.mkdir(self.directory)
-        self.timestep = 0
 
+    def get_contours(self, img):
+        (cnts, _) = cv2.findContours(img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        #cnts = sorted(cnts, key = cv2.contourArea, reverse = True)
 
-    def log(self, fn, params):
-        f = open(self.directory+"/"+'kin.txt', 'a')
-        f.write(json.dumps({fn: params}))
-        f.close()
+        processed_countours = []
 
-        scipy.misc.imsave(self.directory+'/left'+str(self.timestep)+'.png', self.left_image)
-        scipy.misc.imsave(self.directory+'/right'+str(self.timestep)+'.png', self.right_image)
+        for c in cnts:
+            try:
+                # approximate the contour
+                peri = cv2.arcLength(c, True)
+                approx = cv2.approxPolyDP(c, 0.02 * peri, True)
 
-        self.timestep = self.timestep + 1
+                M = cv2.moments(c)
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+
+                processed_countours.append((cX, cY, approx, peri))
+
+            except:
+                pass
+
+        processed_countours = sorted(processed_countours, key = lambda x: x[0])
+        processed_countours = sorted(processed_countours, key = lambda x: x[1])
+
+        return processed_countours

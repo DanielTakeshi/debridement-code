@@ -73,6 +73,8 @@ from math import pi
 from code import InteractiveConsole
 from imp import new_module
 
+from config.constants import *
+
 #class Console(InteractiveConsole):
 #    def __init__(self, names=None):
 #        names = names or {}
@@ -535,6 +537,28 @@ class robot:
         
         rospy.loginfo(rospy.get_caller_id() + ' -> completing absolute move cartesian SLERP')
         return 1
+
+
+
+    #homes the robot at a safe speed, opens the gripper 
+    def home(self):
+        self.open_gripper(90)
+
+        if 'PSM1' in self.__robot_name:
+            post, rott = HOME_POSITION_PSM1
+        else:
+            post, rott = HOME_POSITION_PSM2
+
+        pos = [post[0], post[1], post[2]]
+        rot = tfx.tb_angles(rott[0], rott[1], rott[2])
+
+        time.sleep(1)
+
+        self.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), FAST_SPEED)
+
+
+
+
 
     #DONE: Remove
     def __frame_to_tfxPose(self, frame):
