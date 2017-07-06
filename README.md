@@ -91,6 +91,33 @@ psm1.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
 Talk to Sanjay before using more advanced features of the API (all of which are in dvrk.robot).
 
 
+## Doing Science
+ Unique experimental identifiers are useful, and every time you create a DataCollector class (which arbitrates the sensor readings) it creates a new one for you.
+```
+d = DataCollector()
+print(d.identifier)
+>>> 80PTSJF68HLISWKQY1ZL
+```
+This can be used to make a directory in the results folder:
+```
+import os
+try:
+    os.stat('results/'+d.identifier)
+except:
+    os.mkdir('results/'+d.identifier)
+```
+This folder is a good place to put all of your experimental data.
+
+If you run the program scripts/runExp.sh it will execute the main program and commit the config, parameters, and results to github:
+```
+(my-new-project)davinci0@davinci0:~/davinci-skeleton$ bash scripts/runExp.sh 
+PID of running experiment  9666
+Thu Jul 6 12:04:24 PDT 2017 Still working...log in: 0 /tmp/exp.Y8cir8gwG
+Thu Jul 6 12:04:25 PDT 2017 Still working...log in: 0 /tmp/exp.Y8cir8gwG
+```
+It logs all standard error and out to a temporary directory and prints out the PID (really useful if something goes wrong and you want to kill). The cool part is that even if you kill the python program the bash script will commit whatever intermediate results to github so you won't lose them!
+
+
 
 
 

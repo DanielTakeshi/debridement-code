@@ -15,6 +15,9 @@ from geometry_msgs.msg import PoseStamped
 
 from config.constants import *
 
+import string
+import random
+
 """
 The DataCollector class polls data from the rostopics periodically. It manages 
 the messages that come from ros.
@@ -37,6 +40,8 @@ class DataCollector:
         self.info = {'l': None, 'r': None}
         self.bridge = cv_bridge.CvBridge()
         self.timestep = 0
+
+        self.identifier = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20))
 
 
         rospy.Subscriber(camera_left_topic + camera_im_str, Image,
