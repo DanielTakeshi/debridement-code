@@ -22,18 +22,19 @@ cd awesome_autolab_grad
 
 Then, create a virtual environment inside this directory
 ```
-virtualenv my-new-project
+virtualenv -p /usr/bin/python --system-site-packages my-new-project
 ```
 This creates a new sub directory that will contain your project. Then, run following command:
 ```
 cd my-new-project && source bin/activate
 ```
 You know you are successful when your terminal prompt changes to something like *(my-new-project)davinci0@davinci0*.
-
+**NEVER** install anything outside your virtual environment. 
 Inside the project directory clone the *bare* skeleton repository:
 ```
 git clone --bare https://github.com/BerkeleyAutomation/davinci-skeleton.git
 ```
+
 
 Go to your own github and create a new repository, don't initialize it with anything. For example
 *https://github.com/sjyk/my-new-project.git*. Then, run the following commands:
