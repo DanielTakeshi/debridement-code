@@ -1,4 +1,7 @@
+(Note: this is Daniel Seita's personal repository built on top of Sanjay's skeleton.)
+
 # davinci-skeleton
+
 The base directory structure for da Vinci utilities. This repository defines the basic structure and utilities
 for the Da Vinci surgical robot in the AUTOLAB at UC Berkeley.
 
