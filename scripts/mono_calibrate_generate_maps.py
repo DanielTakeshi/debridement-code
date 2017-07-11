@@ -95,8 +95,12 @@ def print_statistics(data):
     all_pos2 = np.array(pos2_list)
     print("all_pos1.shape: {}".format(all_pos1.shape))
     print("all_pos2.shape: {}".format(all_pos2.shape))
-    print("(all_pos1)  mean {}  std {}".format(np.mean(all_pos1, axis=0).T, np.std(all_pos1, axis=0).T))
-    print("(all_pos2)  mean {}  std {}".format(np.mean(all_pos2, axis=0).T, np.std(all_pos2, axis=0).T))
+    print("  (all_pos1)")
+    print("mean {}  std {}".format(np.mean(all_pos1, axis=0).T, np.std(all_pos1, axis=0).T))
+    print("max  {}  min {}".format(np.max(all_pos1, axis=0).T,  np.min(all_pos1, axis=0).T))
+    print("  (all_pos2)")
+    print("mean {}  std {}".format(np.mean(all_pos2, axis=0).T, np.std(all_pos2, axis=0).T))
+    print("max  {}  min {}".format(np.max(all_pos2, axis=0).T,  np.min(all_pos2, axis=0).T))
 
 
 if __name__ == "__main__":
