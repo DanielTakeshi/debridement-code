@@ -28,12 +28,15 @@ class DataCollector:
                  camera_info_str='camera_info',
                  camera_im_str='image_rect_color'):
 
-        self.right_image = None
-        self.proc_right_image = None
         self.left_image = None
         self.proc_left_image = None
-        self.right_contours = []
+        self.right_image = None
+        self.proc_right_image = None
+
         self.left_contours = []
+        self.left_contours_by_size = []
+        self.right_contours = []
+        self.right_contours_by_size = []
 
         self.timestep = 0
         self.info = {'l': None, 'r': None}
@@ -64,6 +67,7 @@ class DataCollector:
         self.right_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
         self.proc_right_image = IMAGE_PREPROCESSING_DEFAULT(self.right_image)
         self.right_contours = self.get_contours(self.proc_right_image)
+        self.right_contours_by_size = self.get_contours_by_size(self.proc_right_image)
 
 
     def left_image_callback(self, msg):
@@ -72,11 +76,11 @@ class DataCollector:
         self.left_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
         self.proc_left_image = IMAGE_PREPROCESSING_DEFAULT(self.left_image)
         self.left_contours = self.get_contours(self.proc_left_image)
+        self.left_contours_by_size = self.get_contours_by_size(self.proc_left_image)
 
 
     def get_contours(self, img):
         (cnts, _) = cv2.findContours(img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        #cnts = sorted(cnts, key = cv2.contourArea, reverse = True)
         processed_countours = []
 
         for c in cnts:
@@ -93,6 +97,13 @@ class DataCollector:
             except:
                 pass
 
+        # Sort contours in rough left to right, up to down ordering.
         processed_countours = sorted(processed_countours, key = lambda x: x[0])
         processed_countours = sorted(processed_countours, key = lambda x: x[1])
         return processed_countours
+
+
+    def get_contours_by_size(self, img):
+        (cnts, _) = cv2.findContours(img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours_by_size = sorted(cnts, key = cv2.contourArea, reverse = True)
+        return contours_by_size
