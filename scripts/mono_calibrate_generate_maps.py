@@ -24,6 +24,9 @@ def loadData(filename):
 
 
 def outlier(d):
+    """ I think this is roughly the height that we should expect. These values are
+    similar to what's in the `constants.py` file.
+    """
     arm1, arm2 = d
     pos1, _ , cX, cY = arm1
     pos2, _ , cX, cY = arm2
@@ -73,20 +76,45 @@ def train(X,Y):
     return reg
 
 
+def print_statistics(data):
+    """ Debugging method to help me figure out what height to use, for instance.
+    
+    Note again that we're assuming fixed heights. 
+    """
+    pos1_list = []
+    pos2_list = []
+
+    for i, d in enumerate(data):
+        arm1, arm2 = d
+        pos1, _ , cX, cY = arm1
+        pos2, _ , cX, cY = arm2
+        pos1_list.append(list(pos1))
+        pos2_list.append(list(pos2))
+
+    all_pos1 = np.array(pos1_list)
+    all_pos2 = np.array(pos2_list)
+    print("all_pos1.shape: {}".format(all_pos1.shape))
+    print("all_pos2.shape: {}".format(all_pos2.shape))
+    print("(all_pos1)  mean {}  std {}".format(np.mean(all_pos1, axis=0).T, np.std(all_pos1, axis=0).T))
+    print("(all_pos2)  mean {}  std {}".format(np.mean(all_pos2, axis=0).T, np.std(all_pos2, axis=0).T))
+
+
 if __name__ == "__main__":
     """ Do regression for both the left and right cameras, and for each, handle the
     two DVRK arms separately. """
 
-    print("Now loading data from the left camera ...")
+    print("\nNow loading data from the LEFT camera ...")
     data = loadData('config/daniel_left_camera.p')
+    print_statistics(data)
     X,Y = dataToMatrix(data)
     regl = train(X,Y[:,0:2])
     regr = train(X,Y[:,2:4])
     pickle.dump((regl,regr), open('config/daniel_left_mono_model.p','wb'))
 
-    print("Now loading data from the right camera ...")
+    print("\nNow loading data from the RIGHT camera ...")
     data = loadData('config/daniel_right_camera.p')
     X,Y = dataToMatrix(data)
+    print_statistics(data)
     regl = train(X,Y[:,0:2])
     regr = train(X,Y[:,2:4])
     pickle.dump((regl,regr), open('config/daniel_right_mono_model.p','wb'))

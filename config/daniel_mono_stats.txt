@@ -1,0 +1,16 @@
+
+Now loading data from the LEFT camera ...
+all_pos1.shape: (52, 3, 1, 1)
+all_pos2.shape: (52, 3, 1, 1)
+(all_pos1)  mean [[[ 0.05488919  0.05595236 -0.16023154]]]  std [[[ 0.02723929  0.02212519  0.00380236]]]
+(all_pos2)  mean [[[-0.12312954  0.0856522  -0.1230049 ]]]  std [[[ 0.02802091  0.02221765  0.00383309]]]
+For training, average(|| ytarg-ypred ||_2^2) = 1.201650858e-05
+For training, average(|| ytarg-ypred ||_2^2) = 1.27215249457e-05
+
+Now loading data from the RIGHT camera ...
+all_pos1.shape: (53, 3, 1, 1)
+all_pos2.shape: (53, 3, 1, 1)
+(all_pos1)  mean [[[ 0.05675984  0.06197571 -0.16062703]]]  std [[[ 0.02764289  0.02070844  0.0041756 ]]]
+(all_pos2)  mean [[[-0.1208863   0.08935724 -0.12185628]]]  std [[[ 0.02834742  0.02125314  0.00349174]]]
+For training, average(|| ytarg-ypred ||_2^2) = 1.80234670734e-05
+For training, average(|| ytarg-ypred ||_2^2) = 1.78852548859e-05

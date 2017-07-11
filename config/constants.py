@@ -1,5 +1,7 @@
 """
 This file describes a number of useful constants and offsets for the DVRK
+
+For positions, note that values are in _meters_, not millimeters.
 """
 import cv2
 
