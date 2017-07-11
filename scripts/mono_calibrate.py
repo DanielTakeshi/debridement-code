@@ -42,6 +42,11 @@ def initializeRobots():
 
 
 def storeData(filename, arm1, arm2):
+    """ 
+    Stores data by repeatedly appending tuples of (arm1,arm2) data points for 
+    the file. Then other code can simply enumerate over the whole thing. This
+    is with respect to a single camera, remember that (but wrt both _arms_).
+    """
     f = open(filename, 'a')
     pickle.dump((arm1, arm2), f)
     f.close()
