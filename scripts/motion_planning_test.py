@@ -1,6 +1,8 @@
 """
 I'll try to do some simple motion planning for the set of contours I have to 
-see if I can seamlessly get the robot to go where I want it to go.
+see if I can seamlessly get the robot to go where I want it to go. This will
+be the open-loop policy baseline (or at least something which I can convert
+to be the open-loop...).
 """
 
 import environ
@@ -106,7 +108,7 @@ def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=Tr
     for i,pt_camera in enumerate(places_to_visit):
         arm_pt = ypred_arm2_full[i]
         print("moving arm2 to pixel point {} ...".format(pt_camera))
-        post,rott = (tuple(arm_pt), (179.2,-18.7,158.2))
+        post,rott = (tuple(arm_pt), (180.0,-20.0,160.0))
         pos = [post[0], post[1], post[2]]
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
         arm2.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
@@ -139,3 +141,10 @@ if __name__ == "__main__":
                     arm2=arm2, 
                     arm1map=left_arm1_map,
                     arm2map=left_arm2_map)
+    ##print("\nTesting motion planning using the _right_ camera image.")
+    ##motion_planning(contours_by_size=d.right_contours_by_size, 
+    ##                img=d.right_image, 
+    ##                arm1=arm1,
+    ##                arm2=arm2, 
+    ##                arm1map=right_arm1_map,
+    ##                arm2map=right_arm2_map)

@@ -68,6 +68,8 @@ def calibrateImage(contours, img, arm1, arm2, filename):
     """
     arm1.home()
     arm2.home()
+    arm1.close_gripper()
+    arm2.close_gripper()
     print("(after calling `home`) psm1 current position: {}".format(
         arm1.get_current_cartesian_position()))
     print("(after calling `home`) psm2 current position: {}".format(
@@ -95,6 +97,7 @@ def calibrateImage(contours, img, arm1, arm2, filename):
         else:
             print("(not storing contour {} on the left)".format(i))
         arm1.home()
+        arm1.close_gripper()
 
         # Deal with the right camera
         cv2.circle(rimg, (cX,cY), 50, (0,0,255))
@@ -113,6 +116,7 @@ def calibrateImage(contours, img, arm1, arm2, filename):
         else:
             print("(not storing contour {} on the right)".format(i))
         arm2.home()
+        arm2.close_gripper()
 
         # Only store this contour if both keys were not escape keys.
         if key1 != 27 and key2 != 27:
@@ -131,10 +135,13 @@ if __name__ == "__main__":
     #cv2.imshow("Right Camera Image", d.right_image)
     #cv2.waitKey(0)
 
+    # NOTE! IMPORTANT! CHANGE THIS!
+    vv = str(2).zfill(2)
+
     # left calibration
     calibrateImage(d.left_contours, d.left_image, arm1, arm2, 
-            'config/daniel_left_camera.p')
+            'config/daniel_left_camera_v'+vv+'.p')
 
     # right calibration
     calibrateImage(d.right_contours, d.right_image, arm1, arm2, 
-            'config/daniel_right_camera.p')
+            'config/daniel_right_camera_v'+vv+'.p')

@@ -4,6 +4,11 @@ Purely a testing script for me (Daniel Seita) to see how things work.
 PS: be careful about PSM1 vs PSM2, easy to get confused. 
 Don't forget also to turn on the endoscope using the other computer!
 Otherwise the DataCollector's images will not exist. :)
+
+Also, note that yaw, pitch, and roll are modified when you spin the PSM arms.
+Otherwise, for actual motion planning, it seems like it's OK to assume that
+we use the "home" (yaw,pitch,roll) setting for each arm. We insert that, along
+with the (x,y,z) stuff, into a tfx data structure which gives us what we need.
 """
 
 from autolab.data_collector import *
@@ -28,8 +33,6 @@ psm2.home()
 print("\nJust moved to the home positions. Updated locations:")
 print("psm1 current position: {}".format(psm1.get_current_cartesian_position()))
 print("psm2 current position: {}".format(psm2.get_current_cartesian_position()))
-
-print("d.left_image = {}".format(d.left_image))
 
 """
 #move robot to a position
