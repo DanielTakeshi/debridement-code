@@ -13,3 +13,8 @@ Second attempt, Friday July 14. Gah, the ICRA deadline is in *two months* and I 
 - I ignored the entire right column as that one is at too different a z-coordinate.
 - I closed the grippers, not sure if this matters but it's easier for me if there is one sharp point.
 - I am allowed to "press down" on the paper so that it makes contact with the tissue surface, but then I don't force it after that.
+
+
+## Version 03
+
+Third attempt, same as the second one except I rotated the phantom tissue by 180 degrees. Combining this with v02 brings the random forest traning error down to almost 1e-6.

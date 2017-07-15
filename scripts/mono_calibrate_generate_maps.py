@@ -107,21 +107,18 @@ if __name__ == "__main__":
     """ Do regression for both the left and right cameras, and for each, handle the
     two DVRK arms separately. """
 
-    # NOTE IMPORTANT! CHANGE THIS!
-    vv = str(3).zfill(2)
-
     print("\nNow loading data from the LEFT camera ...")
-    data = loadData('config/daniel_left_camera_v'+vv+'.p')
+    data = loadData('config/daniel_left_camera_v02.p')+loadData('config/daniel_left_camera_v03.p')
     print_statistics(data)
     X,Y = dataToMatrix(data)
     regl = train(X,Y[:,0:2])
     regr = train(X,Y[:,2:4])
-    pickle.dump((regl,regr), open('config/daniel_left_mono_model_v'+vv+'.p','wb'))
+    pickle.dump((regl,regr), open('config/daniel_left_mono_model_v02_and_v03.p','wb'))
 
     print("\nNow loading data from the RIGHT camera ...")
-    data = loadData('config/daniel_right_camera_v'+vv+'.p')
+    data = loadData('config/daniel_right_camera_v02.p')+loadData('config/daniel_right_camera_v03.p')
     X,Y = dataToMatrix(data)
     print_statistics(data)
     regl = train(X,Y[:,0:2])
     regr = train(X,Y[:,2:4])
-    pickle.dump((regl,regr), open('config/daniel_right_mono_model_v'+vv+'.p','wb'))
+    pickle.dump((regl,regr), open('config/daniel_right_mono_model_v02_and_v03.p','wb'))
