@@ -136,12 +136,8 @@ if __name__ == "__main__":
     #cv2.waitKey(0)
 
     # NOTE! IMPORTANT! CHANGE THIS!
-    vv = str(2).zfill(2)
+    vv = str(3).zfill(2)
 
-    # left calibration
-    calibrateImage(d.left_contours, d.left_image, arm1, arm2, 
-            'config/daniel_left_camera_v'+vv+'.p')
-
-    # right calibration
-    calibrateImage(d.right_contours, d.right_image, arm1, arm2, 
-            'config/daniel_right_camera_v'+vv+'.p')
+    # left and then right calibration
+    calibrateImage(d.left_contours,  d.left_image,  arm1, arm2, 'config/daniel_left_camera_v'+vv+'.p')
+    calibrateImage(d.right_contours, d.right_image, arm1, arm2, 'config/daniel_right_camera_v'+vv+'.p')

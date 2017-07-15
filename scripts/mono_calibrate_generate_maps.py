@@ -108,7 +108,7 @@ if __name__ == "__main__":
     two DVRK arms separately. """
 
     # NOTE IMPORTANT! CHANGE THIS!
-    vv = str(2).zfill(2)
+    vv = str(3).zfill(2)
 
     print("\nNow loading data from the LEFT camera ...")
     data = loadData('config/daniel_left_camera_v'+vv+'.p')
