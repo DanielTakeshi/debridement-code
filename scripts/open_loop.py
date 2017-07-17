@@ -42,18 +42,27 @@ def show_images(d):
     """ For debugging/visualization. """
     call_wait_key(cv2.imshow("Left Processed", d.left_image_proc))
     call_wait_key(cv2.imshow("Left Gray",      d.left_image_gray))
-    call_wait_key(cv2.imshow("Left Blur",      cv2.GaussianBlur(d.left_image_gray,(7,7),0)))
+    call_wait_key(cv2.imshow("Left BoundBox",  d.left_image_bbox))
+    call_wait_key(cv2.imshow("Left Circles",   d.left_image_circles))
 
     call_wait_key(cv2.imshow("Right Processed", d.right_image_proc))
     call_wait_key(cv2.imshow("Right Gray",      d.right_image_gray))
-    call_wait_key(cv2.imshow("Right Blur",      cv2.GaussianBlur(d.right_image_gray,(7,7),0)))
+    call_wait_key(cv2.imshow("Right BoundBox",  d.right_image_bbox))
+    call_wait_key(cv2.imshow("Right Circles",   d.right_image_circles))
+
+    print("Circles (left):\n{}".format(d.left_circles))
+    print("Circles (right):\n{}".format(d.right_circles))
 
 
-def initializeRobots(sleep_time=5):
+def initializeRobots(sleep_time=5, wait_circles=False):
     d = DataCollector()
     r1 = robot("PSM1") # left (but my right)
     r2 = robot("PSM2") # right (but my left)
     time.sleep(sleep_time)
+    if wait_circles:
+        while (d.left_image_circles is None) or (d.right_image_circles is None):
+            print("At least one circle image is None. Waiting ...")
+            time.sleep(5)
     return (r1,r2,d)
 
 
@@ -148,13 +157,14 @@ def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=Tr
 
 if __name__ == "__main__":
     topk = 20 # ADJUST THIS AS NEEDED!
+    wait_circles = True # Adjust
 
-    arm1, arm2, d = initializeRobots(sleep_time=4)
+    arm1, arm2, d = initializeRobots(sleep_time=4, wait_circles=wait_circles)
     arm1.home()
     arm2.home()
 
     # Keep these lines for debugging and so forth.
-    #save_images(d) # Only need this once, really.
+    save_images(d) # Only need this once, really.
     show_images(d)
 
     # Load the Random Forest regressors. We saved in tuples, hence load into tuples.
