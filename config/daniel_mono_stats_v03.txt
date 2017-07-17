@@ -1,24 +1,83 @@
+Hyperparameters: kfolds 5, num_trees 5
 
-Now loading data from the LEFT camera ...
-all_pos1.shape: (64, 3, 1, 1)
-all_pos2.shape: (64, 3, 1, 1)
-  (all_pos1)
-mean [[[ 0.05367101  0.06033907 -0.16210996]]]  std [[[ 0.02425284  0.02090964  0.00323011]]]
-max  [[[ 0.10413284  0.0999936  -0.15619766]]]  min [[[ 0.01508687  0.02333564 -0.17025402]]]
-  (all_pos2)
-mean [[[-0.12031725  0.09297838 -0.1255275 ]]]  std [[[ 0.02474642  0.02119442  0.00205643]]]
-max  [[[-0.07133812  0.12867452 -0.12127103]]]  min [[[-0.16107785  0.05333018 -0.12975218]]]
-For training, average(|| ytarg-ypred ||_2^2) = 8.509824718e-06
-For training, average(|| ytarg-ypred ||_2^2) = 1.24311787769e-05
+		Now loading data from the LEFT camera ...
 
-Now loading data from the RIGHT camera ...
-all_pos1.shape: (66, 3, 1, 1)
-all_pos2.shape: (66, 3, 1, 1)
+all_pos1.shape: (136, 3, 1, 1)
+all_pos2.shape: (136, 3, 1, 1)
   (all_pos1)
-mean [[[ 0.05824338  0.06107439 -0.16367999]]]  std [[[ 0.02472984  0.02007556  0.00324889]]]
-max  [[[ 0.10019698  0.09862345 -0.15827803]]]  min [[[ 0.01650439  0.02268265 -0.17047494]]]
+mean [[[ 0.05724134  0.06061111 -0.16191448]]]  std [[[ 0.0251906   0.02090529  0.00359712]]]
+max  [[[ 0.10706552  0.0999936  -0.15478406]]]  min [[[ 0.01508687  0.02333564 -0.17025402]]]
   (all_pos2)
-mean [[[-0.11628899  0.0916548  -0.1263092 ]]]  std [[[ 0.02565701  0.02030475  0.00253986]]]
-max  [[[-0.07041703  0.12616916 -0.12075813]]]  min [[[-0.16475133  0.05097815 -0.13191658]]]
-For training, average(|| ytarg-ypred ||_2^2) = 8.87348741442e-06
-For training, average(|| ytarg-ypred ||_2^2) = 7.99689871392e-06
+mean [[[-0.11671557  0.091835   -0.12486849]]]  std [[[ 0.02543531  0.02169954  0.00262111]]]
+max  [[[-0.0638596   0.13064643 -0.11806938]]]  min [[[-0.16107785  0.05043739 -0.12994609]]]
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000007
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000006
+(The above was for the full dataset ... now let's do k-folds to see generalization.)
+
+  On kfold 0, valid range 0 to 27 (inclusive,exclusive)
+with shapes X_train, X_valid = (109, 2), (27, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000032
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000021
+
+  On kfold 1, valid range 27 to 54 (inclusive,exclusive)
+with shapes X_train, X_valid = (109, 2), (27, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000037
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000051
+
+  On kfold 2, valid range 54 to 81 (inclusive,exclusive)
+with shapes X_train, X_valid = (109, 2), (27, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000037
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000039
+
+  On kfold 3, valid range 81 to 108 (inclusive,exclusive)
+with shapes X_train, X_valid = (109, 2), (27, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000029
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000032
+
+  On kfold 4, valid range 108 to 135 (inclusive,exclusive)
+with shapes X_train, X_valid = (109, 2), (27, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000037
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000055
+
+best_loss: 0.000026 at index 0, w/avg_loss: 0.000037
+
+		Now loading data from the RIGHT camera ...
+
+all_pos1.shape: (145, 3, 1, 1)
+all_pos2.shape: (145, 3, 1, 1)
+  (all_pos1)
+mean [[[ 0.05943555  0.0612695  -0.16305105]]]  std [[[ 0.02476423  0.01974467  0.00354581]]]
+max  [[[ 0.10553109  0.09862345 -0.15543726]]]  min [[[ 0.01650439  0.02268265 -0.17047494]]]
+  (all_pos2)
+mean [[[-0.11472919  0.09160636 -0.12607518]]]  std [[[ 0.02526739  0.02016675  0.00267801]]]
+max  [[[-0.07041703  0.12911524 -0.1206707 ]]]  min [[[-0.16475133  0.05097815 -0.13191658]]]
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000007
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000007
+(The above was for the full dataset ... now let's do k-folds to see generalization.)
+
+  On kfold 0, valid range 0 to 29 (inclusive,exclusive)
+with shapes X_train, X_valid = (116, 2), (29, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000027
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000041
+
+  On kfold 1, valid range 29 to 58 (inclusive,exclusive)
+with shapes X_train, X_valid = (116, 2), (29, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000031
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000020
+
+  On kfold 2, valid range 58 to 87 (inclusive,exclusive)
+with shapes X_train, X_valid = (116, 2), (29, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000030
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000025
+
+  On kfold 3, valid range 87 to 116 (inclusive,exclusive)
+with shapes X_train, X_valid = (116, 2), (29, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000019
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000030
+
+  On kfold 4, valid range 116 to 145 (inclusive,exclusive)
+with shapes X_train, X_valid = (116, 2), (29, 2)
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000015
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000020
+
+best_loss: 0.000018 at index 4, w/avg_loss: 0.000026

@@ -172,6 +172,7 @@ if __name__ == "__main__":
     #########
     print("\n\t\tNow loading data from the RIGHT camera ...\n")
     data = loadData('config/daniel_right_camera_v02.p')+loadData('config/daniel_right_camera_v03.p')
+    print_statistics(data)
     X,Y = dataToMatrix(data)
     pp = np.random.permutation(len(X))
     X = X[pp]
