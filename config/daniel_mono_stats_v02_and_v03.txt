@@ -10,66 +10,74 @@ max  [[[ 0.10706552  0.0999936  -0.15478406]]]  min [[[ 0.01508687  0.02333564 -
   (all_pos2)
 mean [[[-0.11671557  0.091835   -0.12486849]]]  std [[[ 0.02543531  0.02169954  0.00262111]]]
 max  [[[-0.0638596   0.13064643 -0.11806938]]]  min [[[-0.16107785  0.05043739 -0.12994609]]]
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000005
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000007
 for right, avg(|| ytarg-ypred ||_2^2) = 0.000006
 (The above was for the full dataset ... now let's do k-folds to see generalization.)
 
   On kfold 0, valid range 0 to 27 (inclusive,exclusive)
 with shapes X_train, X_valid = (109, 2), (27, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000020
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000039
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000055
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000034
 
   On kfold 1, valid range 27 to 54 (inclusive,exclusive)
 with shapes X_train, X_valid = (109, 2), (27, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000023
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000027
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000032
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000021
 
   On kfold 2, valid range 54 to 81 (inclusive,exclusive)
 with shapes X_train, X_valid = (109, 2), (27, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000025
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000027
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000031
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000020
 
   On kfold 3, valid range 81 to 108 (inclusive,exclusive)
 with shapes X_train, X_valid = (109, 2), (27, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000032
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000031
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000027
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000021
 
   On kfold 4, valid range 108 to 135 (inclusive,exclusive)
 with shapes X_train, X_valid = (109, 2), (27, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000028
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000029
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000046
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000032
 
-best_loss: 0.000025 at index 1, w/avg_loss: 0.000028
+best_loss: 0.000024 at index 3, w/avg_loss: 0.000032
 
 		Now loading data from the RIGHT camera ...
 
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000006
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000005
+all_pos1.shape: (145, 3, 1, 1)
+all_pos2.shape: (145, 3, 1, 1)
+  (all_pos1)
+mean [[[ 0.05943555  0.0612695  -0.16305105]]]  std [[[ 0.02476423  0.01974467  0.00354581]]]
+max  [[[ 0.10553109  0.09862345 -0.15543726]]]  min [[[ 0.01650439  0.02268265 -0.17047494]]]
+  (all_pos2)
+mean [[[-0.11472919  0.09160636 -0.12607518]]]  std [[[ 0.02526739  0.02016675  0.00267801]]]
+max  [[[-0.07041703  0.12911524 -0.1206707 ]]]  min [[[-0.16475133  0.05097815 -0.13191658]]]
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000005
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000003
 (The above was for the full dataset ... now let's do k-folds to see generalization.)
 
   On kfold 0, valid range 0 to 29 (inclusive,exclusive)
 with shapes X_train, X_valid = (116, 2), (29, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000029
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000031
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000037
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000054
 
   On kfold 1, valid range 29 to 58 (inclusive,exclusive)
 with shapes X_train, X_valid = (116, 2), (29, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000023
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000021
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000015
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000018
 
   On kfold 2, valid range 58 to 87 (inclusive,exclusive)
 with shapes X_train, X_valid = (116, 2), (29, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000021
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000022
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000022
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000031
 
   On kfold 3, valid range 87 to 116 (inclusive,exclusive)
 with shapes X_train, X_valid = (116, 2), (29, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000029
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000036
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000021
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000029
 
   On kfold 4, valid range 116 to 145 (inclusive,exclusive)
 with shapes X_train, X_valid = (116, 2), (29, 2)
-for left , avg(|| ytarg-ypred ||_2^2) = 0.000039
-for right, avg(|| ytarg-ypred ||_2^2) = 0.000039
+for left , avg(|| ytarg-ypred ||_2^2) = 0.000034
+for right, avg(|| ytarg-ypred ||_2^2) = 0.000037
 
-best_loss: 0.000021 at index 2, w/avg_loss: 0.000029
+best_loss: 0.000017 at index 1, w/avg_loss: 0.000030
