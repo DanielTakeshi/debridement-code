@@ -25,28 +25,34 @@ ARM2_RCAM_HEIGHT = -0.12607518
 
 def save_images(d):
     """ For debugging. """
-    cv2.imwrite(IMDIR+"left_camera.png",  d.left_image)
-    cv2.imwrite(IMDIR+"right_camera.png", d.right_image)
+    cv2.imwrite(IMDIR+"left_camera.png",       d.left_image)
     cv2.imwrite(IMDIR+"left_camera_proc.png",  d.left_image_proc)
-    cv2.imwrite(IMDIR+"right_camera_proc.png", d.right_image_proc)
     cv2.imwrite(IMDIR+"left_camera_gray.png",  d.left_image_gray)
+    cv2.imwrite(IMDIR+"right_camera.png",      d.right_image)
+    cv2.imwrite(IMDIR+"right_camera_proc.png", d.right_image_proc)
     cv2.imwrite(IMDIR+"right_camera_gray.png", d.right_image_gray)
-    cv2.imwrite(IMDIR+"left_camera_circles.png",  d.left_image_circles)
-    cv2.imwrite(IMDIR+"right_camera_circles.png", d.right_image_circles)
 
 
-def initializeRobots(sleep_time=5, wait_for_circles=False):
-    """ Initialization w/circles can take a while so let's add a check. """
+def call_wait_key(nothing):
+    key = cv2.waitKey(0)
+    if key == ESC_KEY:
+        print("Pressed ESC key. Terminating program...")
+        sys.exit()
+
+
+def show_images(d):
+    """ For debugging. """
+    call_wait_key(cv2.imshow("Left Image", d.left_image))
+    call_wait_key(cv2.imshow("Left Image Processed", d.left_image_proc))
+    call_wait_key(cv2.imshow("Right Image", d.right_image))
+    call_wait_key(cv2.imshow("Right Image Processed", d.right_image_proc))
+
+
+def initializeRobots(sleep_time=5):
     d = DataCollector()
     r1 = robot("PSM1") # left (but my right)
     r2 = robot("PSM2") # right (but my left)
     time.sleep(sleep_time)
-    if wait_for_circles:
-        while (d.left_image_circles is None) or (d.right_image_circles is None):
-            time.sleep(1)
-        print("Finally finished setting the circles!")
-        print("left circles:\n{}".format(d.left_circles))
-        print("right circles:\n{}".format(d.right_circles))
     return (r1,r2,d)
 
 
@@ -134,17 +140,13 @@ def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=Tr
 
 
 if __name__ == "__main__":
-    arm1, arm2, d = initializeRobots(sleep_time=10, wait_for_circles=True)
+    arm1, arm2, d = initializeRobots(sleep_time=4)
     arm1.home()
     arm2.home()
 
     # Keep these lines for debugging and so forth.
     save_images(d)
-    cv2.imshow("Left Image Circles", d.left_image_circles)
-    cv2.waitKey(0)
-    cv2.imshow("Right Image Circles", d.right_image_circles)
-    cv2.waitKey(0)
-    print("len(left_circles): {}, len(right_circles): {}".format(len(d.left_circles), len(d.right_circles)))
+    show_images(d)
 
     # Load the Random Forest regressors. We saved in tuples, hence load into tuples.
     left_arm1_map,  left_arm2_map  = pickle.load(open('config/daniel_left_mono_model_v02_and_v03.p'))
