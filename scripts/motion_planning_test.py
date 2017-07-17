@@ -14,12 +14,12 @@ import pickle
 import sys
 IMDIR = "scripts/images/"
 
-# See `config/daniel_mono_stats.txt`. I think arm1 (respectively, arm2) should
-# be equivalent (in theory) for both cameras. There's inevitable noise here.
-ARM1_LCAM_HEIGHT = -0.16023154
-ARM2_LCAM_HEIGHT = -0.1230049
-ARM1_RCAM_HEIGHT = -0.16062703
-ARM2_RCAM_HEIGHT = -0.12185628
+# See `config/daniel_mono_stats_v02_and_v03.txt`. I think arm1 (respectively, arm2) 
+# should be equivalent (in theory) for both cameras. There's inevitable noise here.
+ARM1_LCAM_HEIGHT = -0.16191448
+ARM2_LCAM_HEIGHT = -0.12486849
+ARM1_RCAM_HEIGHT = -0.16305105
+ARM2_RCAM_HEIGHT = -0.12607518
 
 
 def initializeRobots():
@@ -131,8 +131,8 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
 
     # Load the Random Forest regressors. We saved in tuples, hence load into tuples.
-    left_arm1_map,  left_arm2_map  = pickle.load(open('config/daniel_left_mono_model.p'))
-    right_arm1_map, right_arm2_map = pickle.load(open('config/daniel_right_mono_model.p'))
+    left_arm1_map,  left_arm2_map  = pickle.load(open('config/daniel_left_mono_model_v02_and_v03.p'))
+    right_arm1_map, right_arm2_map = pickle.load(open('config/daniel_right_mono_model_v02_and_v03.p'))
 
     print("\nTesting motion planning using the _left_ camera image.")
     motion_planning(contours_by_size=d.left_contours_by_size, 

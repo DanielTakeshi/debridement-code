@@ -66,14 +66,28 @@ def dataToMatrix(data):
     return X,Y
 
 
-def train(X,Y):
-    reg = RandomForestRegressor(n_estimators=10)
+def train(X, Y, arm, X_valid=None, Y_valid=None, n_estimators=10):
+    """ 
+    Handles both the case when I have one training set and when I do k-fold cross validation.
+    Also returns the avg_l2 error on the validation set.
+    """
+    do_validation = True if X_valid is not None else False
+    reg = RandomForestRegressor(n_estimators=n_estimators)
     reg.fit(X,Y)
-    Y_pred = reg.predict(X)
-    avg_l2_train = np.sum((Y_pred-Y)*(Y_pred-Y), axis=1)
-    avg_l2_train = np.mean(avg_l2_train)
-    print("For training, average(|| ytarg-ypred ||_2^2) = {}".format(avg_l2_train))
-    return reg
+
+    if do_validation:
+        Y_pred = reg.predict(X_valid)
+        avg_l2_train = np.sum((Y_pred-Y_valid)*(Y_pred-Y_valid), axis=1)
+    else:
+        Y_pred = reg.predict(X)
+        avg_l2_train = np.sum((Y_pred-Y)*(Y_pred-Y), axis=1)
+    avg_l2 = np.mean(avg_l2_train)
+
+    print("for {}, avg(|| ytarg-ypred ||_2^2) = {:.6f}".format(arm, avg_l2))
+    if do_validation:
+        return reg, avg_l2
+    else:
+        return reg
 
 
 def print_statistics(data):
@@ -104,21 +118,90 @@ def print_statistics(data):
 
 
 if __name__ == "__main__":
-    """ Do regression for both the left and right cameras, and for each, handle the
-    two DVRK arms separately. """
+    """ 
+    Do regression for both the left and right cameras, and for each, handle the
+    two DVRK arms separately. Also, do k-fold cross validation. 
+    """
+    # Some tunable hyper-parameters.
+    kfolds = 5
+    num_trees = 5
+    print("Hyperparameters: kfolds {}, num_trees {}".format(kfolds, num_trees))
 
-    print("\nNow loading data from the LEFT camera ...")
+    ########
+    # LEFT #
+    ########
+    print("\n\t\tNow loading data from the LEFT camera ...\n")
     data = loadData('config/daniel_left_camera_v02.p')+loadData('config/daniel_left_camera_v03.p')
     print_statistics(data)
     X,Y = dataToMatrix(data)
-    regl = train(X,Y[:,0:2])
-    regr = train(X,Y[:,2:4])
+    pp = np.random.permutation(len(X))
+    X = X[pp]
+    Y = Y[pp]
+    regl = train(X, Y[:,0:2], arm='left ', n_estimators=num_trees)
+    regr = train(X, Y[:,2:4], arm='right', n_estimators=num_trees)
+    print("(The above was for the full dataset ... now let's do k-folds to see generalization.)")
     pickle.dump((regl,regr), open('config/daniel_left_mono_model_v02_and_v03.p','wb'))
 
-    print("\nNow loading data from the RIGHT camera ...")
+    num_valid = int(len(X) / kfolds)
+    num_train = len(X) - num_valid
+    best_loss = np.float('inf')
+    best_idx = -1
+    avg_loss = 0.0
+
+    for k in range(kfolds):
+        vstart = k*num_valid
+        vend = (k+1)*num_valid
+        X_valid = X[vstart:vend]
+        Y_valid = Y[vstart:vend]
+        X_train = np.concatenate((X[:vstart], X[vend:]))
+        Y_train = np.concatenate((Y[:vstart], Y[vend:]))
+        print("\n  On kfold {}, valid range {} to {} (inclusive,exclusive)".format(k, vstart, vend))
+        print("with shapes X_train, X_valid = {}, {}".format(X_train.shape, X_valid.shape))
+        regl, lossl = train(X_train, Y_train[:,0:2], arm='left ', X_valid=X_valid, Y_valid=Y_valid[:,0:2], n_estimators=num_trees)
+        regr, lossr = train(X_train, Y_train[:,2:4], arm='right', X_valid=X_valid, Y_valid=Y_valid[:,2:4], n_estimators=num_trees)
+        loss = (lossl + lossr) / 2. # Will average losses among arms
+        avg_loss += loss
+        if loss < best_loss:
+            best_loss = loss
+            best_idx = k
+    avg_loss /= kfolds
+    print("\nbest_loss: {:.6f} at index {}, w/avg_loss: {:.6f}".format(best_loss, best_idx, avg_loss))
+
+    #########
+    # RIGHT #
+    #########
+    print("\n\t\tNow loading data from the RIGHT camera ...\n")
     data = loadData('config/daniel_right_camera_v02.p')+loadData('config/daniel_right_camera_v03.p')
     X,Y = dataToMatrix(data)
-    print_statistics(data)
-    regl = train(X,Y[:,0:2])
-    regr = train(X,Y[:,2:4])
+    pp = np.random.permutation(len(X))
+    X = X[pp]
+    Y = Y[pp]
+    regl = train(X, Y[:,0:2], arm='left ', n_estimators=num_trees)
+    regr = train(X, Y[:,2:4], arm='right', n_estimators=num_trees)
+    print("(The above was for the full dataset ... now let's do k-folds to see generalization.)")
     pickle.dump((regl,regr), open('config/daniel_right_mono_model_v02_and_v03.p','wb'))
+
+    num_valid = int(len(X) / kfolds)
+    num_train = len(X) - num_valid
+    best_loss = np.float('inf')
+    best_idx = -1
+    avg_loss = 0.0
+
+    for k in range(kfolds):
+        vstart = k*num_valid
+        vend = (k+1)*num_valid
+        X_valid = X[vstart:vend]
+        Y_valid = Y[vstart:vend]
+        X_train = np.concatenate((X[:vstart], X[vend:]))
+        Y_train = np.concatenate((Y[:vstart], Y[vend:]))
+        print("\n  On kfold {}, valid range {} to {} (inclusive,exclusive)".format(k, vstart, vend))
+        print("with shapes X_train, X_valid = {}, {}".format(X_train.shape, X_valid.shape))
+        regl, lossl = train(X_train, Y_train[:,0:2], arm='left ', X_valid=X_valid, Y_valid=Y_valid[:,0:2], n_estimators=num_trees)
+        regr, lossr = train(X_train, Y_train[:,2:4], arm='right', X_valid=X_valid, Y_valid=Y_valid[:,2:4], n_estimators=num_trees)
+        loss = (lossl + lossr) / 2. # Will average losses among arms
+        avg_loss += loss
+        if loss < best_loss:
+            best_loss = loss
+            best_idx = k
+    avg_loss /= kfolds
+    print("\nbest_loss: {:.6f} at index {}, w/avg_loss: {:.6f}".format(best_loss, best_idx, avg_loss))
