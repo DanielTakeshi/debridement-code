@@ -22,7 +22,7 @@ def IMAGE_PREPROCESSING_DEFAULT(img, grayscale_only=False):
     if grayscale_only:
         return cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
     else:
-        img = cv2.medianBlur(img, 9)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img = cv2.GaussianBlur(img, (7,7), 0)
         img = cv2.bilateralFilter(img, 7, 13, 13)
         return cv2.Canny(img,100,200)

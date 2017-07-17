@@ -24,13 +24,11 @@ ARM2_RCAM_HEIGHT = -0.12607518
 
 
 def save_images(d):
-    """ For debugging. """
-    cv2.imwrite(IMDIR+"left_camera.png",       d.left_image)
-    cv2.imwrite(IMDIR+"left_camera_proc.png",  d.left_image_proc)
-    cv2.imwrite(IMDIR+"left_camera_gray.png",  d.left_image_gray)
-    cv2.imwrite(IMDIR+"right_camera.png",      d.right_image)
-    cv2.imwrite(IMDIR+"right_camera_proc.png", d.right_image_proc)
-    cv2.imwrite(IMDIR+"right_camera_gray.png", d.right_image_gray)
+    """ For debugging/visualization. """
+    cv2.imwrite(IMDIR+"left_proc.png",  d.left_image_proc)
+    cv2.imwrite(IMDIR+"left_gray.png",  d.left_image_gray)
+    cv2.imwrite(IMDIR+"right_proc.png", d.right_image_proc)
+    cv2.imwrite(IMDIR+"right_gray.png", d.right_image_gray)
 
 
 def call_wait_key(nothing):
@@ -41,11 +39,14 @@ def call_wait_key(nothing):
 
 
 def show_images(d):
-    """ For debugging. """
-    call_wait_key(cv2.imshow("Left Image", d.left_image))
-    call_wait_key(cv2.imshow("Left Image Processed", d.left_image_proc))
-    call_wait_key(cv2.imshow("Right Image", d.right_image))
-    call_wait_key(cv2.imshow("Right Image Processed", d.right_image_proc))
+    """ For debugging/visualization. """
+    call_wait_key(cv2.imshow("Left Processed", d.left_image_proc))
+    call_wait_key(cv2.imshow("Left Gray",      d.left_image_gray))
+    call_wait_key(cv2.imshow("Left Blur",      cv2.GaussianBlur(d.left_image_gray,(7,7),0)))
+
+    call_wait_key(cv2.imshow("Right Processed", d.right_image_proc))
+    call_wait_key(cv2.imshow("Right Gray",      d.right_image_gray))
+    call_wait_key(cv2.imshow("Right Blur",      cv2.GaussianBlur(d.right_image_gray,(7,7),0)))
 
 
 def initializeRobots(sleep_time=5):
@@ -71,19 +72,25 @@ def motion_one_arm(places_to_visit, arm, ypred_arm_full, rotation):
     arm.home()
 
 
-def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=True):
+def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=True, topk=10):
     """ Simple motion planning. Going from point A to point B, basically.
     
     Parameters
     ----------
+    contours_by_size:
+    img:
+    arm1:
+    arm2:
     arm1map: [RandomForestRegressor]
         Maps from {left,right} camera's (cX,cY) to arm1's position, assuming fixed height.
     arm2map: [RandomForestRegressor]
         Maps from {left,right} camera's (cX,cY) to arm2's position, assuming fixed height.
     left: [Boolean]
         True if this assumes the left camera, false if right camera.
+    topk: [int]
+        The number of contours that we keep, i.e. the top k in terms of area.
     """
-    topK = 10
+    topK = topk
     arm1.home()
     arm2.home()
     print("(after calling `home`) psm1 current position: {}".format(arm1.get_current_cartesian_position()))
@@ -117,10 +124,10 @@ def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=Tr
     # Show image with contours + exact centers. Exit if it's not looking good.
     cv2.imshow("Image with topK contours", img_for_drawing)
     key = cv2.waitKey(0) 
+    cv2.destroyAllWindows()
     if key == ESC_KEY:
         print("Pressed ESC key. Terminating program...")
         return
-    cv2.destroyAllWindows()
 
     # Manage predictions, store in `ypred_arm{1,2}_full`.
     X = np.array(places_to_visit)
@@ -140,12 +147,14 @@ def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=Tr
 
 
 if __name__ == "__main__":
+    topk = 20 # ADJUST THIS AS NEEDED!
+
     arm1, arm2, d = initializeRobots(sleep_time=4)
     arm1.home()
     arm2.home()
 
     # Keep these lines for debugging and so forth.
-    save_images(d)
+    #save_images(d) # Only need this once, really.
     show_images(d)
 
     # Load the Random Forest regressors. We saved in tuples, hence load into tuples.
@@ -158,11 +167,15 @@ if __name__ == "__main__":
                     arm1=arm1,
                     arm2=arm2, 
                     arm1map=left_arm1_map,
-                    arm2map=left_arm2_map)
-    ##print("\nRunning the OPEN LOOP POLICY using the *right* camera image.")
-    ##motion_planning(contours_by_size=d.right_contours_by_size, 
-    ##                img=d.right_image, 
-    ##                arm1=arm1,
-    ##                arm2=arm2, 
-    ##                arm1map=right_arm1_map,
-    ##                arm2map=right_arm2_map)
+                    arm2map=left_arm2_map,
+                    left=True,
+                    topk=topk)
+    print("\nRunning the OPEN LOOP POLICY using the *right* camera image.")
+    motion_planning(contours_by_size=d.right_contours_by_size, 
+                    img=d.right_image, 
+                    arm1=arm1,
+                    arm2=arm2, 
+                    arm1map=right_arm1_map,
+                    arm2map=right_arm2_map,
+                    left=False,
+                    topk=topk)
