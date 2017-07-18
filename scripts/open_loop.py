@@ -81,12 +81,13 @@ def motion_one_arm(places_to_visit, arm, ypred_arm_full, rotation):
     arm.home()
 
 
-def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=True, topk=10):
+def motion_planning(contours_by_size, circles, img, arm1, arm2, arm1map, arm2map, left=True, topk=10):
     """ Simple motion planning. Going from point A to point B, basically.
     
     Parameters
     ----------
     contours_by_size:
+    circles:
     img:
     arm1:
     arm2:
@@ -105,22 +106,27 @@ def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=Tr
     print("(after calling `home`) psm1 current position: {}".format(arm1.get_current_cartesian_position()))
     print("(after calling `home`) psm2 current position: {}".format(arm2.get_current_cartesian_position()))
     print("We identified {} contours but will keep top {}.".format(len(contours_by_size), topK))
+    print("We identified {} circles.".format(len(circles)))
     img_for_drawing = img.copy()
     contours = contours_by_size[:topK]
-    cv2.drawContours(img_for_drawing, contours, -1, (0,255,0), 3)
+    #cv2.drawContours(img_for_drawing, contours, -1, (0,255,0), 3)
     places_to_visit = []
 
-    # Iterate and find centers. We'll make the robot move to these centers in a sequence.
-    for i,cnt in enumerate(contours):
-        M = cv2.moments(cnt)
-        if M["m00"] == 0: continue
-        cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])
+    ## # Iterate and find centers. We'll make the robot move to these centers in a sequence.
+    ## for i,cnt in enumerate(contours):
+    ##     M = cv2.moments(cnt)
+    ##     if M["m00"] == 0: continue
+    ##     cX = int(M["m10"] / M["m00"])
+    ##     cY = int(M["m01"] / M["m00"])
 
-        # Sometimes I see duplicates, so just handle this case here.
-        if (cX,cY) not in places_to_visit:
-            cv2.circle(img=img_for_drawing, center=(cX,cY), radius=5, color=(255,0,0), thickness=4)
-            places_to_visit.append((cX,cY))
+    ##     # Sometimes I see duplicates, so just handle this case here.
+    ##     if (cX,cY) not in places_to_visit:
+    ##         cv2.circle(img=img_for_drawing, center=(cX,cY), radius=5, color=(255,0,0), thickness=4)
+    ##         places_to_visit.append((cX,cY))
+
+    # Now trying circles agan ...
+    for i,(x,y,r) in enumerate(circles):
+        places_to_visit.append((x,y))
     num_points = len(places_to_visit)
 
     # Insert any special ordering preferences here and number them in the image.
@@ -173,6 +179,7 @@ if __name__ == "__main__":
 
     print("\nRunning the OPEN LOOP POLICY using the *left* camera image.")
     motion_planning(contours_by_size=d.left_contours_by_size, 
+                    circles=d.left_circles,
                     img=d.left_image, 
                     arm1=arm1,
                     arm2=arm2, 
@@ -182,6 +189,7 @@ if __name__ == "__main__":
                     topk=topk)
     print("\nRunning the OPEN LOOP POLICY using the *right* camera image.")
     motion_planning(contours_by_size=d.right_contours_by_size, 
+                    circles=d.right_circles,
                     img=d.right_image, 
                     arm1=arm1,
                     arm2=arm2, 

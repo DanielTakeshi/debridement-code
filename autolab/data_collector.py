@@ -93,7 +93,7 @@ class DataCollector:
         self.left_image_bbox = self.make_bounding_box(self.left_image_gray.copy(), x,y,w,h)
 
         self.left_contours = self.get_contours(self.left_image_proc, self.left_apply_bbox)
-        self.left_contours_by_size = self.get_contours_by_size(self.left_image_proc, self.left_apply_bbox)
+        self.left_contours_by_size = self.get_contours_by_size(self.left_image_proc, self.left_apply_bbox, x,y,w,h)
 
         # Handle circles ... must be handled delicately. Apply bbox if desired.
         self.left_circles = self.get_circles_list(self.left_image_proc, self.left_apply_bbox, x,y,w,h)
@@ -112,14 +112,14 @@ class DataCollector:
         self.right_image_bbox = self.make_bounding_box(self.right_image_gray.copy(), x,y,w,h)
 
         self.right_contours = self.get_contours(self.right_image_proc, self.right_apply_bbox)
-        self.right_contours_by_size = self.get_contours_by_size(self.right_image_proc, self.right_apply_bbox)
+        self.right_contours_by_size = self.get_contours_by_size(self.right_image_proc, self.right_apply_bbox, x,y,w,h)
 
         # Handle circles ... must be handled delicately. Apply bbox if desired.
         self.right_circles = self.get_circles_list(self.right_image_proc, self.right_apply_bbox, x,y,w,h)
         self.right_image_circles = self.set_circles(self.right_image_gray.copy(), self.right_circles)
 
 
-    def make_bounding_box(self, img, x, y, w, h):
+    def make_bounding_box(self, img, x,y,w,h):
         """ Make a bounding box. """
         cv2.rectangle(img, (x,y), (x+w, y+h), (0,255,0), 2)
         return img
@@ -140,7 +140,7 @@ class DataCollector:
         if (apply_bbox) and (circles is not None):
             real_circles = []
             for (x,y,r) in circles[0,:]:
-                if (xx < x < xx+ww) and (yy < y < y+hh):
+                if (xx < x < xx+ww) and (yy < y < yy+hh):
                     real_circles.append([x,y,r])
             return real_circles
         else:
@@ -191,8 +191,29 @@ class DataCollector:
         return processed_countours
 
 
-    def get_contours_by_size(self, img, apply_bbox):
-        """ TODO: Enforce the apply_bbox condition. """
+    def get_contours_by_size(self, img, apply_bbox, xx,yy,ww,hh):
+        """ 
+        Returns the contours in order of size, largest to smallest.  Also applies the bounding 
+        box condition if desired. Ideally, I'd like to enforce a convexity condition, but it's 
+        hard because even the "circle" contours it finds aren't convex sets.
+        """
         (cnts, _) = cv2.findContours(img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contours_by_size = sorted(cnts, key=cv2.contourArea, reverse=True)
+        contained_cnts = []  # New list w/bounding box condition
+
+        if apply_bbox:
+            for c in cnts:
+                try:
+                    # Find the centroids of the contours in _pixel_space_. :)
+                    M = cv2.moments(c)
+                    cX = int(M["m10"] / M["m00"])
+                    cY = int(M["m01"] / M["m00"])
+                    # Enforce it to be within bounding box.
+                    if (xx < cX < xx+ww) and (yy < cY < yy+hh):
+                        contained_cnts.append(c)
+                except:
+                    pass
+        else:
+            contained_cnts = cnts # Just keep the old list
+
+        contours_by_size = sorted(contained_cnts, key=cv2.contourArea, reverse=True)
         return contours_by_size
