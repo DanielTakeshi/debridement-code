@@ -42,8 +42,12 @@ class DataCollector:
         self.right_image_circles = None
 
         # To get a bounding box of points, to filter away any nonsense.
-        self.lx, self.ly, self.lw, self.lh = 350, 200, 750, 700        
-        self.rx, self.ry, self.rw, self.rh = 300, 200, 700, 700        
+        # For the square material.
+        #self.lx, self.ly, self.lw, self.lh = 350, 200, 750, 700        
+        #self.rx, self.ry, self.rw, self.rh = 300, 200, 700, 700        
+        # For the rectangular material.
+        self.lx, self.ly, self.lw, self.lh = 200, 250, 800, 500        
+        self.rx, self.ry, self.rw, self.rh = 150, 250, 750, 500
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
 
@@ -195,12 +199,14 @@ class DataCollector:
         """ 
         Returns the contours in order of size, largest to smallest.  Also applies the bounding 
         box condition if desired. Ideally, I'd like to enforce a convexity condition, but it's 
-        hard because even the "circle" contours it finds aren't convex sets.
+        hard because even the "circle" contours it finds aren't convex sets. In addition, I
+        apply a rough form of duplicate contour detection if we're using bounding boxes.
         """
         (cnts, _) = cv2.findContours(img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contained_cnts = []  # New list w/bounding box condition
 
         if apply_bbox:
+            duplicates = []
             for c in cnts:
                 try:
                     # Find the centroids of the contours in _pixel_space_. :)
@@ -208,8 +214,9 @@ class DataCollector:
                     cX = int(M["m10"] / M["m00"])
                     cY = int(M["m01"] / M["m00"])
                     # Enforce it to be within bounding box.
-                    if (xx < cX < xx+ww) and (yy < cY < yy+hh):
+                    if (xx < cX < xx+ww) and (yy < cY < yy+hh) and (cX,cY) not in duplicates:
                         contained_cnts.append(c)
+                        duplicates.append((cX,cY))
                 except:
                     pass
         else:
