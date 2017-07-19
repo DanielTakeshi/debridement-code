@@ -217,7 +217,7 @@ e       assuming that `apply_bbox == True` of course.
                     cX = int(M["m10"] / M["m00"])
                     cY = int(M["m01"] / M["m00"])
                     # Enforce it to be within bounding box.
-                    if (xx < cX < xx+ww) and (yy < cY < yy+hh) and self._not_duplicate(duplicates, cX, cY, rtol=2):
+                    if (xx < cX < xx+ww) and (yy < cY < yy+hh) and self._not_duplicate(duplicates, cX, cY, rtol=6):
                         contained_cnts.append(c)
                         duplicates.append((cX,cY))
                 except:

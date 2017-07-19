@@ -1,4 +1,4 @@
-(Note: this is Daniel Seita's personal repository built on top of Sanjay's skeleton.)
+(Note: this is Daniel Seita's personal repository built on top of Sanjay's skeleton. I also copied in Sanjay's DDCO code in its own folder.)
 
 # davinci-skeleton
 
