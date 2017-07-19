@@ -26,10 +26,10 @@ ARM2_RCAM_HEIGHT = -0.12607518
 # ADJUST THESE AS NEEDED! #
 ###########################
 TOPK            = 4 
+EXTRA_HEIGHT    = 0.015
 WAIT_CIRCLES    = False
-DO_LEFT         = True
-DO_RIGHT        = False
-EXTRA_HEIGHT    = 0.01 
+DO_LEFT_CAMERA  = True
+DO_RIGHT_CAMERA = False
 
 
 def save_images(d):
@@ -76,17 +76,51 @@ def initializeRobots(sleep_time=5):
 
 
 def motion_one_arm(places_to_visit, arm, ypred_arm_full, rotation):
-    """ Motion plan w/one arm (wrt one camera). For angles, use the `home` angle. """
+    """ Motion plan w/one arm (wrt one camera). For angles, use the `home` angle. 
+
+    Note that we can't just call open gripper and close gripper and expect that the robot will
+    be finished with its motion. The way the dvrk works is that commands are called sequentially
+    immediately, even if their actual impact isn't felt in "dvrk-space", which is why I need a
+    bunch of time.sleep() calls. I'm not sure if there's a better way around this.
+    
+    places_to_visit: [list] 
+        List of tuples (cX,cY) indicating the pixels to which the arm should move.
+    arm: [dvrk arm] 
+        Either the left or right DVRK arm, from calling `robot("PSM{1,2}")`.
+    ypred_arm_full: [np.array]
+        Numpy array of shape (N,3) where N is the number of points to visit and each row
+        consists of the x and y coordinates (in pixel space) along with a fixed height.
+    rotation: [tuple] 
+        Completes the specification of the points to move to. These are known ahead of time
+        for both arms.
+    """
     print("")
+    assert ypred_arm_full.shape[0] == len(places_to_visit)
+    arm.open_gripper(degree=90, time_sleep=2)
+
     for i,pt_camera in enumerate(places_to_visit):
         arm_pt = ypred_arm_full[i]
+
+        # First, get the arm to (the rough general area of) the target.
         print("moving arm1 to pixel point {} ...".format(pt_camera))
         post, rott = (tuple(arm_pt), rotation)
         pos = [post[0], post[1], post[2]]
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
-        arm.home()
-        arm.close_gripper()
+
+        # Move gripper *downwards* to target object (ideally).
+        pos[2] -= 0.01
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
+   
+        # Close gripper and move *upwards*, ideally grabbing the object..
+        #arm.close_gripper(time_sleep=0)
+        arm.open_gripper(degree=10, time_sleep=2)
+        pos[2] += 0.01
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
+ 
+        # Finally, home the robot, then open the gripper to drop something (ideally).
+        arm.home(open_gripper=False)
+        arm.open_gripper(degree=90, time_sleep=2)
     arm.home()
 
 
@@ -112,31 +146,31 @@ def motion_planning(contours_by_size, circles, use_contours, img, arm1, arm2, ar
     arm1.home()
     arm2.home()
     print("Note: use_contours: {}".format(use_contours))
-    print("(after calling `home`) psm1 current position: {}".format(arm1.get_current_cartesian_position()))
-    print("(after calling `home`) psm2 current position: {}".format(arm2.get_current_cartesian_position()))
+    #print("(after calling `home`) psm1 current position: {}".format(arm1.get_current_cartesian_position()))
+    #print("(after calling `home`) psm2 current position: {}".format(arm2.get_current_cartesian_position()))
     print("We identified {} contours but will keep top {}.".format(len(contours_by_size), topK))
     print("We identified {} circles.".format(len(circles)))
     img_for_drawing = img.copy()
-    contours = contours_by_size[:topK]
+    contours = list(contours_by_size)
     if use_contours:
         cv2.drawContours(img_for_drawing, contours, -1, (0,255,0), 3)
     places_to_visit = []
 
     if use_contours:
         # Iterate and find centers. We'll make the robot move to these centers in a sequence.
+        # Note that duplicate contours should be detected beforehand.
         for i,cnt in enumerate(contours):
             M = cv2.moments(cnt)
             if M["m00"] == 0: continue
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
-            # Sometimes I see duplicates, so just handle this case here.
-            if (cX,cY) not in places_to_visit:
-                cv2.circle(img=img_for_drawing, center=(cX,cY), radius=5, color=(255,0,0), thickness=4)
-                places_to_visit.append((cX,cY))
+            places_to_visit.append((cX,cY))
     else:
         # Only if we're using HoughCircles. They're pretty bad.
         for i,(x,y,r) in enumerate(circles):
             places_to_visit.append((x,y))
+
+    places_to_visit = places_to_visit[:topK]
     num_points = len(places_to_visit)
 
     # Insert any special ordering preferences here and number them in the image.
@@ -145,6 +179,9 @@ def motion_planning(contours_by_size, circles, use_contours, img, arm1, arm2, ar
         cv2.putText(img=img_for_drawing, text=str(i), org=(cX,cY), 
                     fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
                     fontScale=1, color=(0,0,0), thickness=2)
+        #print(i,cX,cY)
+        cv2.circle(img=img_for_drawing, center=(cX,cY), radius=3, color=(0,0,255), thickness=-1)
+
 
     # Show image with contours + exact centers. Exit if it's not looking good.
     cv2.imshow("Image with topK contours (exit if not looking good)", img_for_drawing)
@@ -168,7 +205,7 @@ def motion_planning(contours_by_size, circles, use_contours, img, arm1, arm2, ar
 
     # Finally, perform motion planning with the predicted places to visit.
     motion_one_arm(places_to_visit, arm1, ypred_arm1_full, rotation=(  0.0,   0.0, -160.0))
-    motion_one_arm(places_to_visit, arm2, ypred_arm2_full, rotation=(180.0, -20.0,  160.0))
+    #motion_one_arm(places_to_visit, arm2, ypred_arm2_full, rotation=(180.0, -20.0,  160.0))
 
 
 if __name__ == "__main__":
@@ -176,7 +213,7 @@ if __name__ == "__main__":
     arm1, arm2, d = initializeRobots(sleep_time=4)
     arm1.home()
     arm2.home()
-
+    
     # Keep these lines for debugging and so forth.
     #save_images(d)
     show_images(d)
@@ -185,7 +222,7 @@ if __name__ == "__main__":
     left_arm1_map,  left_arm2_map  = pickle.load(open('config/daniel_left_mono_model_v02_and_v03.p'))
     right_arm1_map, right_arm2_map = pickle.load(open('config/daniel_right_mono_model_v02_and_v03.p'))
 
-    if DO_LEFT:
+    if DO_LEFT_CAMERA:
         print("\nRunning the OPEN LOOP POLICY using the *left* camera image.")
         motion_planning(contours_by_size=d.left_contours_by_size, 
                         circles=d.left_circles,
@@ -197,7 +234,7 @@ if __name__ == "__main__":
                         arm2map=left_arm2_map,
                         left=True)
 
-    if DO_RIGHT:
+    if DO_RIGHT_CAMERA:
         print("\nRunning the OPEN LOOP POLICY using the *right* camera image.")
         motion_planning(contours_by_size=d.right_contours_by_size, 
                         circles=d.right_circles,

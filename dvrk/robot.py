@@ -358,8 +358,8 @@ class robot:
             # print 'check_list', check_list
             return False ####   should be False or actually based on user's return code from console
 
-    def close_gripper(self):
-        "Close the arm gripper"
+    def close_gripper(self, time_sleep=0.0):
+        """ Close the arm gripper, then sleep if desired. """
         if (not self.__dvrk_set_state('DVRK_POSITION_GOAL_CARTESIAN')):
             return False
         self.__goal_reached_event.clear()
@@ -367,12 +367,14 @@ class robot:
         self.set_jaw_position.publish(-10.0 * math.pi / 180.0);
         self.__goal_reached_event.wait(20) # 1 minute at most
         if not self.__goal_reached: print 'Jaw not fully closed'
+        time.sleep(time_sleep)
 
-    def open_gripper(self, degree):
-        "Open the arm gripper"
+    def open_gripper(self, degree, time_sleep=0.0):
+        """ Open the arm gripper, then sleep if desired. """
         if (not self.__dvrk_set_state('DVRK_POSITION_GOAL_CARTESIAN')):
             return False
         self.set_jaw_position.publish(degree * math.pi / 180.0);
+        time.sleep(time_sleep)
 
     def delta_move_cartesian(self, delta_input, interpolate=True):
         """Incremental translation in cartesian space.
@@ -541,8 +543,9 @@ class robot:
 
 
     #homes the robot at a safe speed, opens the gripper 
-    def home(self):
-        self.open_gripper(90)
+    def home(self, open_gripper=True):
+        if open_gripper:
+            self.open_gripper(90)
 
         if 'PSM1' in self.__robot_name:
             post, rott = HOME_POSITION_PSM1
@@ -551,12 +554,8 @@ class robot:
 
         pos = [post[0], post[1], post[2]]
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
-
         time.sleep(1)
-
         self.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), FAST_SPEED)
-
-
 
 
 

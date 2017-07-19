@@ -46,8 +46,8 @@ class DataCollector:
         #self.lx, self.ly, self.lw, self.lh = 350, 200, 750, 700        
         #self.rx, self.ry, self.rw, self.rh = 300, 200, 700, 700        
         # For the rectangular material.
-        self.lx, self.ly, self.lw, self.lh = 200, 250, 800, 500        
-        self.rx, self.ry, self.rw, self.rh = 150, 250, 750, 500
+        self.lx, self.ly, self.lw, self.lh = 200, 250, 850, 500        
+        self.rx, self.ry, self.rw, self.rh = 150, 250, 800, 500
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
 
@@ -137,7 +137,7 @@ class DataCollector:
         The method is really quite sensitive to the parameter settings. :-(
         Note: circles is a numpy array with shape (1,T,3) where T = number of circles. I am returning
         something of shape (T',3) where T' <= T since it filters out those outside the bounding box,
-        assuming that `apply_bbox == True` of course.
+e       assuming that `apply_bbox == True` of course.
         """
         circles = cv2.HoughCircles(image=img.copy(), method=cv2.cv.CV_HOUGH_GRADIENT, 
                 dp=4.0, minDist=20.0, maxRadius=30)
@@ -176,6 +176,7 @@ class DataCollector:
         processed_countours = []
 
         for c in cnts:
+            duplicates = []
             try:
                 # Approximate the contour
                 peri = cv2.arcLength(c, True)
@@ -185,7 +186,9 @@ class DataCollector:
                 M = cv2.moments(c)
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                processed_countours.append((cX, cY, approx, peri))
+                if ((cX,cY) not in duplicates):
+                    duplicates.append((cX,cY))
+                    processed_countours.append((cX, cY, approx, peri))
             except:
                 pass
 
@@ -214,7 +217,7 @@ class DataCollector:
                     cX = int(M["m10"] / M["m00"])
                     cY = int(M["m01"] / M["m00"])
                     # Enforce it to be within bounding box.
-                    if (xx < cX < xx+ww) and (yy < cY < yy+hh) and (cX,cY) not in duplicates:
+                    if (xx < cX < xx+ww) and (yy < cY < yy+hh) and self._not_duplicate(duplicates, cX, cY, rtol=2):
                         contained_cnts.append(c)
                         duplicates.append((cX,cY))
                 except:
@@ -224,3 +227,15 @@ class DataCollector:
 
         contours_by_size = sorted(contained_cnts, key=cv2.contourArea, reverse=True)
         return contours_by_size
+
+
+    def _not_duplicate(self, duplicates, cX, cY, rtol):
+        """ Helper method for checking duplicates. """
+        if len(duplicates) == 0:
+            return True
+        for x in range(-rtol,rtol+1):
+            for y in range(-rtol,rtol+1):
+                if (x+cX, y+cY) in duplicates:
+                    # We're close enough that it's a duplicate.
+                    return False
+        return True
