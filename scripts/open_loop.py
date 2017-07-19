@@ -97,6 +97,7 @@ def motion_one_arm(places_to_visit, arm, ypred_arm_full, rotation):
     print("")
     assert ypred_arm_full.shape[0] == len(places_to_visit)
     arm.open_gripper(degree=90, time_sleep=2)
+    offset = 0.012
 
     for i,pt_camera in enumerate(places_to_visit):
         arm_pt = ypred_arm_full[i]
@@ -109,13 +110,13 @@ def motion_one_arm(places_to_visit, arm, ypred_arm_full, rotation):
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
 
         # Move gripper *downwards* to target object (ideally).
-        pos[2] -= 0.01
+        pos[2] -= offset
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
    
         # Close gripper and move *upwards*, ideally grabbing the object..
         #arm.close_gripper(time_sleep=0)
         arm.open_gripper(degree=10, time_sleep=2)
-        pos[2] += 0.01
+        pos[2] += offset
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
  
         # Finally, home the robot, then open the gripper to drop something (ideally).

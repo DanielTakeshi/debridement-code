@@ -186,7 +186,7 @@ e       assuming that `apply_bbox == True` of course.
                 M = cv2.moments(c)
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                if ((cX,cY) not in duplicates):
+                if self._not_duplicate(duplicates, cX, cY, rtol=2):
                     duplicates.append((cX,cY))
                     processed_countours.append((cX, cY, approx, peri))
             except:
