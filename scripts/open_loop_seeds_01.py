@@ -4,6 +4,8 @@ This is the open-loop policy. We will do this as a baseline policy. This must be
 How about this to start: focus on having four seeds in a row. Program an open-loop policy to pick up seeds in order.
 The trajectory is thus split into four timesteps. The times we intervene are for visual servoing, when we have to
 figure out where specifically to move. The other parts of the task are a bit irrelevant. This scenario is indexed as "01".
+And to be clear: the four timesteps are because of the four seeds. For each seed, the trajectory is split up into several
+parts, but only one of them requires any learning whatsoever.
 """
 
 import environ
@@ -14,7 +16,6 @@ import numpy as np
 import pickle
 import sys
 IMDIR = "scripts/images/"
-DEMO_FILE_NAME = 'data/demos_seeds_01.p'
 ESC_KEY = 27
 
 # See `config/daniel_mono_stats_v02_and_v03.txt`. I think arm1 (respectively, arm2) 
@@ -35,6 +36,20 @@ WAIT_CIRCLES    = False
 DO_LEFT_CAMERA  = True
 DO_RIGHT_CAMERA = False
 VERTICAL_OFFSET = 0.012
+DEMO_FILE_NAME  = 'data/demos_seeds_01.p'
+
+
+def get_num_stuff(filename):
+    data = []
+    f = open(filename,'r')
+    num = 0
+    while True:
+        try:
+            d = pickle.load(f)
+            num += 1
+        except EOFError:
+            break
+    return num
 
 
 def save_images(d):
@@ -46,6 +61,7 @@ def save_images(d):
 
 
 def call_wait_key(nothing=None):
+    """ I have an ESC which helps me exit program. """
     key = cv2.waitKey(0)
     if key == ESC_KEY:
         print("Pressed ESC key. Terminating program...")
@@ -81,7 +97,8 @@ def initializeRobots(sleep_time=5):
 
 
 def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, demo_file=None):
-    """ This will store a full trajectory for the four seeds cases.
+    """ This will store a full trajectory for the four pumpkin seeds cases. We only need to store
+    the stuff where learning is done.
 
     Note that we can't just call open gripper and close gripper and expect that the robot will
     be finished with its motion. The way the dvrk works is that commands are called sequentially
@@ -112,8 +129,8 @@ def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, de
     arm.home()
     arm.open_gripper(degree=90, time_sleep=2)
 
-    # This will store our demonstration. Store the starting location w/angles as well!
-    demo = [ (arm.get_current_cartesian_position(), 90) ]
+    # This will store our human-guided stuff.
+    demo = []
 
     for i,pt_camera in enumerate(places_to_visit):
         arm_pt = ypred_arm_full[i]
@@ -124,45 +141,39 @@ def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, de
         pos = [post[0], post[1], post[2]]
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
-        frame = arm.get_current_cartesian_position()
-        print("appending frame {}".format(frame))
-        demo.append( (frame, 90) )
 
-        # (2) IMPORTANT. HUMAN-GUIDED STUFF HAPPENS HERE! (Press ESC to abort.)
+        # (2) IMPORTANT. HUMAN-GUIDED STUFF HAPPENS HERE! (Press ESC to abort, this WON'T ADD TO PICKLE FILE.)
         # Before pressing any key, move the arm to the correct location KEEPING height fixed as much as possible.
         # Unfortunately, that's tricky in itself. Not sure easiest way since we don't have an API for that. :-(
+        frame_before = arm.get_current_cartesian_position()
         time.sleep(1)
-        call_wait_key(cv2.imshow("Left Gray", d.left_image_gray))
+        call_wait_key(cv2.imshow("Left Gray", d.left_image_gray)) # Do stuff here!
         cv2.destroyAllWindows()
         frame = arm.get_current_cartesian_position()
-        print("appending frame {}".format(frame))
-        demo.append( (frame, 90) )
+        demo.append((frame_before, frame, pt_camera)) # Add to list!
 
         # (3) Move gripper *downwards* to target object (ideally), using new frame.
+        # Note: keep its (new) rotation, *not* the one I sent as the function input
         pos = (frame.position[:3])
-        rot = tfx.tb_angles(frame.rotation) # keep its (new) rotation, not the one I sent as the function input
+        rot = tfx.tb_angles(frame.rotation) 
         pos[2] -= VERTICAL_OFFSET
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
-        frame = arm.get_current_cartesian_position()
-        print("appending frame {}".format(frame))
-        demo.append( (frame, 90) )
 
-        # (4) Close gripper and move *upwards*, ideally grabbing the object..
+        # (4) Close gripper and move *upwards*, ideally grabbing the object.
         arm.open_gripper(degree=10, time_sleep=2)
         pos[2] += VERTICAL_OFFSET
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
-        demo.append( (arm.get_current_cartesian_position(), 10) )
 
         # (5) Finally, home the robot, then open the gripper to drop something (ideally).
         arm.home(open_gripper=False)
         arm.open_gripper(degree=90, time_sleep=2)
-        demo.append( (arm.get_current_cartesian_position(), 90) )
-    arm.home()
 
     # Store the demonstration.
+    arm.home()
     f = open(DEMO_FILE_NAME, 'a')
     pickle.dump(demo, f)
     f.close()
+    print("Finished dumping to pickle file, num stuff: {}.".format(get_num_stuff(DEMO_FILE_NAME)))
 
 
 def motion_planning_01(contours_by_size, circles, use_contours, img, arm1, arm2, arm1map, arm2map):

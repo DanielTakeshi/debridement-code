@@ -46,7 +46,7 @@ class DataCollector:
         #self.lx, self.ly, self.lw, self.lh = 350, 200, 750, 700        
         #self.rx, self.ry, self.rw, self.rh = 300, 200, 700, 700        
         # For the rectangular material.
-        self.lx, self.ly, self.lw, self.lh = 300, 250, 800, 500        
+        self.lx, self.ly, self.lw, self.lh = 350, 300, 800, 400        
         self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
