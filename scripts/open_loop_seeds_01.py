@@ -37,6 +37,8 @@ DO_LEFT_CAMERA  = True
 DO_RIGHT_CAMERA = False
 VERTICAL_OFFSET = 0.012
 DEMO_FILE_NAME  = 'data/demos_seeds_01.p'
+RANDOM_FOREST   = pickle.load(open('data/demos_seeds_01_mapping.p', 'r'))
+DO_RF_NO_DEMO   = True
 
 
 def get_num_stuff(filename):
@@ -96,9 +98,11 @@ def initializeRobots(sleep_time=5):
     return (r1,r2,d)
 
 
-def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, demo_file=None):
+def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, use_rf=False):
     """ This will store a full trajectory for the four pumpkin seeds cases. We only need to store
     the stuff where learning is done.
+
+    OR it will just run the trajectory, and we'll use the random forest predictor to help us out!
 
     Note that we can't just call open gripper and close gripper and expect that the robot will
     be finished with its motion. The way the dvrk works is that commands are called sequentially
@@ -121,15 +125,15 @@ def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, de
     rotation: [tuple] 
         Completes the specification of the points to move to. These are known ahead of time
         for both arms.
-    demo_file: [String]
-        Path for the pickle file where we store human-guided demonstrations.
+    use_rf: [boolean]
+        If False, don't use RF & collect demos. If True, use the RF & don't collect demos.
     """
     print("")
     assert ypred_arm_full.shape[0] == len(places_to_visit)
     arm.home()
     arm.open_gripper(degree=90, time_sleep=2)
 
-    # This will store our human-guided stuff.
+    # This will store our human-guided stuff, at least if use_rf=False.
     demo = []
 
     for i,pt_camera in enumerate(places_to_visit):
@@ -142,20 +146,31 @@ def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, de
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
 
-        # (2) IMPORTANT. HUMAN-GUIDED STUFF HAPPENS HERE! (Press ESC to abort, this WON'T ADD TO PICKLE FILE.)
-        # Before pressing any key, move the arm to the correct location KEEPING height fixed as much as possible.
-        # Unfortunately, that's tricky in itself. Not sure easiest way since we don't have an API for that. :-(
         frame_before = arm.get_current_cartesian_position()
-        time.sleep(1)
-        call_wait_key(cv2.imshow("Left Gray", d.left_image_gray)) # Do stuff here!
-        cv2.destroyAllWindows()
-        frame = arm.get_current_cartesian_position()
-        demo.append((frame_before, frame, pt_camera)) # Add to list!
+        if use_rf:
+            # (2) Use our RANDOM_FOREST to act as a guide to correct robot (x,y) positioning.
+            robot_x, robot_y = frame_before.position[0], frame_before.position[1]
+            result = RANDOM_FOREST.predict([[robot_x,robot_y]]) # I use [[]] to avoid warnings...
+            result = np.squeeze(result) # So it's just (2,)
+            new_x, new_y = result[0], result[1]
+            pos = [new_x, new_y, post[2]]
+            arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
+        else:
+            # (2) IMPORTANT. HUMAN-GUIDED STUFF HAPPENS HERE! (Press ESC to abort, this WON'T ADD TO PICKLE FILE.)
+            # Before pressing any key, move the arm to the correct location KEEPING height fixed as much as possible.
+            # Unfortunately, that's tricky in itself. Not sure easiest way since we don't have an API for that. :-(
+            time.sleep(1)
+            call_wait_key(cv2.imshow("Left Gray", d.left_image_gray)) # Do stuff here!
+            cv2.destroyAllWindows()
+            frame = arm.get_current_cartesian_position()
+            demo.append((frame_before, frame, pt_camera)) # Add to list!
 
         # (3) Move gripper *downwards* to target object (ideally), using new frame.
-        # Note: keep its (new) rotation, *not* the one I sent as the function input
-        pos = (frame.position[:3])
-        rot = tfx.tb_angles(frame.rotation) 
+        # Note: keep its (new) rotation, *not* the one I sent as the function input, if I changed it.
+        # If doing the demo, we need to get new pos and the new rotation. Otherwise, use old ones.
+        if not use_rf:
+            pos = (frame.position[:3])
+            rot = tfx.tb_angles(frame.rotation) 
         pos[2] -= VERTICAL_OFFSET
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
 
@@ -168,12 +183,13 @@ def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, de
         arm.home(open_gripper=False)
         arm.open_gripper(degree=90, time_sleep=2)
 
-    # Store the demonstration.
+    # Store the demonstration if not using the random forest regressor.
     arm.home()
-    f = open(DEMO_FILE_NAME, 'a')
-    pickle.dump(demo, f)
-    f.close()
-    print("Finished dumping to pickle file, num stuff: {}.".format(get_num_stuff(DEMO_FILE_NAME)))
+    if not use_rf:
+        f = open(DEMO_FILE_NAME, 'a')
+        pickle.dump(demo, f)
+        f.close()
+        print("Finished dumping to pickle file, num stuff: {}.".format(get_num_stuff(DEMO_FILE_NAME)))
 
 
 def motion_planning_01(contours_by_size, circles, use_contours, img, arm1, arm2, arm1map, arm2map):
@@ -253,7 +269,7 @@ def motion_planning_01(contours_by_size, circles, use_contours, img, arm1, arm2,
     print("\tfull ypred_arm1:\n{}\n\tfull ypred_arm2:\n{}".format(ypred_arm1_full, ypred_arm2_full))
 
     # Perform a human-guided open-loop demonstration.
-    store_demonstration_01(places_to_visit, d, arm1, ypred_arm1_full, rotation=(  0.0,   0.0, -160.0))
+    store_demonstration_01(places_to_visit, d, arm1, ypred_arm1_full, rotation=(  0.0,   0.0, -160.0), use_rf=DO_RF_NO_DEMO)
 
 
 if __name__ == "__main__":
