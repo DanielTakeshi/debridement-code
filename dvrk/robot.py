@@ -209,6 +209,7 @@ class robot:
     def home(self):
         """This method will provide power to the robot as will as home
         the robot. This method requries the robot name."""
+        print("HI THERE")
         rospy.loginfo(rospy.get_caller_id() + ' -> start homing')
         self.__robot_state_event.clear()
         self.set_robot_state.publish('Home')
@@ -556,6 +557,7 @@ class robot:
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
         time.sleep(1)
         self.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), FAST_SPEED)
+        time.sleep(1)
 
 
 

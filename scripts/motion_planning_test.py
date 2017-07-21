@@ -6,6 +6,8 @@ to be the open-loop...).
 
 EDIT: this is for testing with the sheet of paper with black dots on it. Do
 the open-loop stuff elsewhere!
+
+EDIT: BE CAREFUL WITH THE CAMERA.
 """
 
 import environ

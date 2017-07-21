@@ -1,5 +1,4 @@
 from robot import *
-
 from data_collector import DataCollector
 import cv2
 import numpy as np
@@ -7,69 +6,55 @@ import pickle
 
 
 def coarseGo(arm, cx, cy):
+    """
+    Still not sure what these values are supposed to mean, or how they were derived.
+    """
     xl = 0.00603172613036
     xh = 0.173861855068
-
     yl = 0.00569858956424
     yh = 0.140927597351
-
     yr = (yh-yl)*(cy/1080.0) + yl 
     xr = (xh-xl)*(1-(cx+850)/1920.0) + xl
 
     angle = np.random.choice(np.arange(-80,80,10))
-
     pos = [xr,yr, -.158]
-
     rot = tfx.tb_angles(0, 0.0,-160.0)
-    
     arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.005)
-
     time.sleep(4)
-
     return angle
 
+
 def servoGo(arm, cx, cy):
+    """
+    I see, model-sep.p is a stored RandomForest model, with left and right arms (I think...) or maybe it's one arm, but
+    predicting a true x,y coordinate pairing for the position in the xyz plane?
+    """
     regx, regy = pickle.load(open('model-sep.p','rb'))
     angle = np.random.choice(np.arange(-80,80,10))
     outx = regx.predict(np.array([cx, cy]))
     outy = regy.predict(np.array([cx, cy]))
     
     pos = [outx[0], outy[0], -0.158]
-
     rot = tfx.tb_angles(0.0, 0.0,-160.0)
-    
     arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
-
     time.sleep(4)
     
 
-
 def collect(arm1, estimate):
     f = open('data.p', 'a')
-
     frame = arm1.get_current_cartesian_position()
     pos = tuple(frame.position[:3])
     rot = tfx.tb_angles(frame.rotation)
     rot = (rot.yaw_deg, rot.pitch_deg, rot.roll_deg)
-
     pickle.dump({'pos': pos, 'rot': rot, 'estimate': estimate}, f)
-
     f.close()
 
 
-
 psm1 = robot("PSM1")
-
 psm1.open_gripper(80)
-
 time.sleep(2)
-
-
-
 d = DataCollector()
-
 time.sleep(2)
-
 
 img = cv2.medianBlur(d.left_image[:,850:], 13)
 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -89,7 +74,6 @@ for c in cnts:
     cY = int(M["m01"] / M["m00"])
 
     print(cX, cY)
-
     #angle = coarseGo(psm1, cX, cY)
     servoGo(psm1, cX, cY)
 
@@ -99,7 +83,5 @@ for c in cnts:
     cv2.imshow("Calibration", img)
     cv2.waitKey(0)
 
+    # I think the previous line is when we should move the arm. Then the data collection uses the correct location.
     collect(psm1, (cX,cY))
-
-
-

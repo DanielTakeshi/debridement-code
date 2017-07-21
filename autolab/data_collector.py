@@ -46,8 +46,8 @@ class DataCollector:
         #self.lx, self.ly, self.lw, self.lh = 350, 200, 750, 700        
         #self.rx, self.ry, self.rw, self.rh = 300, 200, 700, 700        
         # For the rectangular material.
-        self.lx, self.ly, self.lw, self.lh = 200, 250, 850, 500        
-        self.rx, self.ry, self.rw, self.rh = 150, 250, 800, 500
+        self.lx, self.ly, self.lw, self.lh = 300, 250, 800, 500        
+        self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
 
@@ -137,7 +137,7 @@ class DataCollector:
         The method is really quite sensitive to the parameter settings. :-(
         Note: circles is a numpy array with shape (1,T,3) where T = number of circles. I am returning
         something of shape (T',3) where T' <= T since it filters out those outside the bounding box,
-e       assuming that `apply_bbox == True` of course.
+        assuming that `apply_bbox == True` of course.
         """
         circles = cv2.HoughCircles(image=img.copy(), method=cv2.cv.CV_HOUGH_GRADIENT, 
                 dp=4.0, minDist=20.0, maxRadius=30)

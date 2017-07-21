@@ -1,6 +1,9 @@
 """
-This is the open-loop policy. We will do this as a baseline policy. 
-This must be applied on our actual experimental setup.
+This is the open-loop policy. We will do this as a baseline policy. This must be applied on our actual experimental setup.
+
+How about this to start: focus on having four seeds in a row. Program an open-loop policy to pick up seeds in order.
+The trajectory is thus split into four timesteps. The times we intervene are for visual servoing, when we have to
+figure out where specifically to move. The other parts of the task are a bit irrelevant. This scenario is indexed as "01".
 """
 
 import environ
@@ -11,6 +14,7 @@ import numpy as np
 import pickle
 import sys
 IMDIR = "scripts/images/"
+DEMO_FILE_NAME = 'data/demos_seeds_01.p'
 ESC_KEY = 27
 
 # See `config/daniel_mono_stats_v02_and_v03.txt`. I think arm1 (respectively, arm2) 
@@ -30,6 +34,7 @@ EXTRA_HEIGHT    = 0.015
 WAIT_CIRCLES    = False
 DO_LEFT_CAMERA  = True
 DO_RIGHT_CAMERA = False
+VERTICAL_OFFSET = 0.012
 
 
 def save_images(d):
@@ -40,7 +45,7 @@ def save_images(d):
     cv2.imwrite(IMDIR+"right_gray.png", d.right_image_gray)
 
 
-def call_wait_key(nothing):
+def call_wait_key(nothing=None):
     key = cv2.waitKey(0)
     if key == ESC_KEY:
         print("Pressed ESC key. Terminating program...")
@@ -75,64 +80,102 @@ def initializeRobots(sleep_time=5):
     return (r1,r2,d)
 
 
-def motion_one_arm(places_to_visit, arm, ypred_arm_full, rotation):
-    """ Motion plan w/one arm (wrt one camera). For angles, use the `home` angle. 
+def store_demonstration_01(places_to_visit, d, arm, ypred_arm_full, rotation, demo_file=None):
+    """ This will store a full trajectory for the four seeds cases.
 
     Note that we can't just call open gripper and close gripper and expect that the robot will
     be finished with its motion. The way the dvrk works is that commands are called sequentially
     immediately, even if their actual impact isn't felt in "dvrk-space", which is why I need a
     bunch of time.sleep() calls. I'm not sure if there's a better way around this.
+
+    ASSUMES THE LEFT ARM ONLY for simplicity. And the left camera!
     
     places_to_visit: [list] 
         List of tuples (cX,cY) indicating the pixels to which the arm should move.
+    d: [DataCollector]
+        The data collector.
     arm: [dvrk arm] 
         Either the left or right DVRK arm, from calling `robot("PSM{1,2}")`.
     ypred_arm_full: [np.array]
         Numpy array of shape (N,3) where N is the number of points to visit and each row
-        consists of the x and y coordinates (in pixel space) along with a fixed height.
+        consists of the x and y coordinates (in *robot* space) along with a fixed height.
+        The height here is the target height PLUS a vertical offset, so that we move to a
+        spot and then explicitly tell the robot arm to move downwards.
     rotation: [tuple] 
         Completes the specification of the points to move to. These are known ahead of time
         for both arms.
+    demo_file: [String]
+        Path for the pickle file where we store human-guided demonstrations.
     """
     print("")
     assert ypred_arm_full.shape[0] == len(places_to_visit)
+    arm.home()
     arm.open_gripper(degree=90, time_sleep=2)
-    offset = 0.012
+
+    # This will store our demonstration. Store the starting location w/angles as well!
+    demo = [ (arm.get_current_cartesian_position(), 90) ]
 
     for i,pt_camera in enumerate(places_to_visit):
         arm_pt = ypred_arm_full[i]
 
-        # First, get the arm to (the rough general area of) the target.
-        print("moving arm1 to pixel point {} ...".format(pt_camera))
+        # (1) Get the arm to (the rough general area of) the target.
+        print("Moving arm1 to PIXELS point {} ...".format(pt_camera))
         post, rott = (tuple(arm_pt), rotation)
         pos = [post[0], post[1], post[2]]
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
+        frame = arm.get_current_cartesian_position()
+        print("appending frame {}".format(frame))
+        demo.append( (frame, 90) )
 
-        # Move gripper *downwards* to target object (ideally).
-        pos[2] -= offset
+        # (2) IMPORTANT. HUMAN-GUIDED STUFF HAPPENS HERE! (Press ESC to abort.)
+        # Before pressing any key, move the arm to the correct location KEEPING height fixed as much as possible.
+        # Unfortunately, that's tricky in itself. Not sure easiest way since we don't have an API for that. :-(
+        time.sleep(1)
+        call_wait_key(cv2.imshow("Left Gray", d.left_image_gray))
+        cv2.destroyAllWindows()
+        frame = arm.get_current_cartesian_position()
+        print("appending frame {}".format(frame))
+        demo.append( (frame, 90) )
+
+        # (3) Move gripper *downwards* to target object (ideally), using new frame.
+        pos = (frame.position[:3])
+        rot = tfx.tb_angles(frame.rotation) # keep its (new) rotation, not the one I sent as the function input
+        pos[2] -= VERTICAL_OFFSET
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
-   
-        # Close gripper and move *upwards*, ideally grabbing the object..
-        #arm.close_gripper(time_sleep=0)
+        frame = arm.get_current_cartesian_position()
+        print("appending frame {}".format(frame))
+        demo.append( (frame, 90) )
+
+        # (4) Close gripper and move *upwards*, ideally grabbing the object..
         arm.open_gripper(degree=10, time_sleep=2)
-        pos[2] += offset
+        pos[2] += VERTICAL_OFFSET
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
- 
-        # Finally, home the robot, then open the gripper to drop something (ideally).
+        demo.append( (arm.get_current_cartesian_position(), 10) )
+
+        # (5) Finally, home the robot, then open the gripper to drop something (ideally).
         arm.home(open_gripper=False)
         arm.open_gripper(degree=90, time_sleep=2)
+        demo.append( (arm.get_current_cartesian_position(), 90) )
     arm.home()
 
+    # Store the demonstration.
+    f = open(DEMO_FILE_NAME, 'a')
+    pickle.dump(demo, f)
+    f.close()
 
-def motion_planning(contours_by_size, circles, use_contours, img, arm1, arm2, arm1map, arm2map, left=True):
-    """ Simple motion planning. Going from point A to point B, basically.
+
+def motion_planning_01(contours_by_size, circles, use_contours, img, arm1, arm2, arm1map, arm2map):
+    """ Simple motion planning. Going from point A to point B, basically. This gets everything _set_up_
+    for the actual motion planning. This is '01' which refers to the setting where we have four seeds in
+    a row and must pick them up. ASSUMES LEFT ARM.
     
     Parameters
     ----------
     contours_by_size:
     circles:
-    use_contours:
+    use_contours: [boolean]
+        True if the contours are used for determining targets, False if circles. Use the contours!
     img:
     arm1:
     arm2:
@@ -140,15 +183,12 @@ def motion_planning(contours_by_size, circles, use_contours, img, arm1, arm2, ar
         Maps from {left,right} camera's (cX,cY) to arm1's position, assuming fixed height.
     arm2map: [RandomForestRegressor]
         Maps from {left,right} camera's (cX,cY) to arm2's position, assuming fixed height.
-    left: [Boolean]
-        True if this assumes the left camera, false if right camera.
     """
     topK = TOPK
+    left=True
     arm1.home()
     arm2.home()
     print("Note: use_contours: {}".format(use_contours))
-    #print("(after calling `home`) psm1 current position: {}".format(arm1.get_current_cartesian_position()))
-    #print("(after calling `home`) psm2 current position: {}".format(arm2.get_current_cartesian_position()))
     print("We identified {} contours but will keep top {}.".format(len(contours_by_size), topK))
     print("We identified {} circles.".format(len(circles)))
     img_for_drawing = img.copy()
@@ -171,11 +211,12 @@ def motion_planning(contours_by_size, circles, use_contours, img, arm1, arm2, ar
         for i,(x,y,r) in enumerate(circles):
             places_to_visit.append((x,y))
 
+    # Collect only topK places to visit and insert ordering preferences. I like going from right to left.
     places_to_visit = places_to_visit[:topK]
     num_points = len(places_to_visit)
+    places_to_visit = sorted(places_to_visit, key=lambda x:x[0], reverse=True)
 
-    # Insert any special ordering preferences here and number them in the image.
-    # places_to_visit = ... shuffle(places_to_visit) ... ???
+    # Number the places to visit in an image so I see them.
     for i,(cX,cY) in enumerate(places_to_visit):
         cv2.putText(img=img_for_drawing, text=str(i), org=(cX,cY), 
                     fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
@@ -183,14 +224,10 @@ def motion_planning(contours_by_size, circles, use_contours, img, arm1, arm2, ar
         #print(i,cX,cY)
         cv2.circle(img=img_for_drawing, center=(cX,cY), radius=3, color=(0,0,255), thickness=-1)
 
-
     # Show image with contours + exact centers. Exit if it's not looking good.
     cv2.imshow("Image with topK contours (exit if not looking good)", img_for_drawing)
-    key = cv2.waitKey(0) 
+    call_wait_key()
     cv2.destroyAllWindows()
-    if key == ESC_KEY:
-        print("Pressed ESC key. Terminating program...")
-        return
 
     # Manage predictions, store in `ypred_arm{1,2}_full`.
     X = np.array(places_to_visit)
@@ -204,16 +241,17 @@ def motion_planning(contours_by_size, circles, use_contours, img, arm1, arm2, ar
     print("\tin matrix form, X.shape is {} and elements are:\n{}".format(X.shape, X))
     print("\tfull ypred_arm1:\n{}\n\tfull ypred_arm2:\n{}".format(ypred_arm1_full, ypred_arm2_full))
 
-    # Finally, perform motion planning with the predicted places to visit.
-    motion_one_arm(places_to_visit, arm1, ypred_arm1_full, rotation=(  0.0,   0.0, -160.0))
-    #motion_one_arm(places_to_visit, arm2, ypred_arm2_full, rotation=(180.0, -20.0,  160.0))
+    # Perform a human-guided open-loop demonstration.
+    store_demonstration_01(places_to_visit, d, arm1, ypred_arm1_full, rotation=(  0.0,   0.0, -160.0))
 
 
 if __name__ == "__main__":
     """ See the top of the file for program-wide arguments. """
     arm1, arm2, d = initializeRobots(sleep_time=4)
     arm1.home()
+    print("arm1 home: {}".format(arm1.get_current_cartesian_position()))
     arm2.home()
+    print("arm2 home: {}".format(arm2.get_current_cartesian_position()))
     
     # Keep these lines for debugging and so forth.
     #save_images(d)
@@ -225,24 +263,13 @@ if __name__ == "__main__":
 
     if DO_LEFT_CAMERA:
         print("\nRunning the OPEN LOOP POLICY using the *left* camera image.")
-        motion_planning(contours_by_size=d.left_contours_by_size, 
-                        circles=d.left_circles,
-                        use_contours=True,
-                        img=d.left_image, 
-                        arm1=arm1,
-                        arm2=arm2, 
-                        arm1map=left_arm1_map,
-                        arm2map=left_arm2_map,
-                        left=True)
-
+        motion_planning_01(contours_by_size=d.left_contours_by_size, 
+                           circles=d.left_circles,
+                           use_contours=True,
+                           img=d.left_image, 
+                           arm1=arm1,
+                           arm2=arm2, 
+                           arm1map=left_arm1_map,
+                           arm2map=left_arm2_map)
     if DO_RIGHT_CAMERA:
-        print("\nRunning the OPEN LOOP POLICY using the *right* camera image.")
-        motion_planning(contours_by_size=d.right_contours_by_size, 
-                        circles=d.right_circles,
-                        use_contours=True,
-                        img=d.right_image, 
-                        arm1=arm1,
-                        arm2=arm2, 
-                        arm1map=right_arm1_map,
-                        arm2map=right_arm2_map,
-                        left=False)
+        raise NotImplementedError()
