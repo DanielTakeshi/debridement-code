@@ -30,12 +30,12 @@ import sys
 ###########################
 ESC_KEY       = 27
 TOPK_CONTOURS = 4 
-COLLECT_DEMOS = True    # Set False for test-time evaluation.
+COLLECT_DEMOS = False    # Set False for test-time evaluation.
 
 IMDIR          = 'scripts/images/'
-RF_REGRESSOR   = 'config/daniel_left_mono_model_v02_and_v03.p'
 DEMO_FILE_NAME = 'data/demos_seeds_02.p'
-#RANDOM_FOREST  = pickle.load(open('data/demos_seeds_01_mapping.p', 'r'))
+RF_REGRESSOR   = 'config/daniel_left_mono_model_v02_and_v03.p'
+RANDOM_FORESTS = 'data/demos_seeds_02_four_mappings.p'
 
 # See `config/daniel_mono_stats_v02_and_v03.txt`. Requires some tweaking.
 ARM1_LCAM_HEIGHT = -0.16191448
@@ -123,6 +123,9 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
     default_rotation = (0.0, 0.0, -160.0)
     demo = []
 
+    # These are used if we're doing test-time rollouts and thus NOT collecting demonstrations.
+    rf_rot, rf_xy, rf_rot_camera, rf_xy_camera = pickle.load(open(RANDOM_FORESTS))
+
     for i,pt_camera in enumerate(places_to_visit):
         arm_pt = ypred_arm_full[i]
 
@@ -130,6 +133,8 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
         print("\nMoving arm1 to PIXELS point {} indexed at {}".format(pt_camera, i))
         post, rott = (tuple(arm_pt), default_rotation)
         pos = [post[0], post[1], post[2]]
+
+        # Note: rott contains the tuple, tfx.tb_angles means we have to call rot.yaw_deg, etc.
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
 
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
@@ -158,14 +163,31 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
             print("frame after xy moving: {}".format(frame_after_xy_move))
             demo.append((frame_before_moving, frame_after_xy_move, pt_camera, 'xy'))
 
-        ##else:
-        ##    # (2) Use our RANDOM_FOREST to act as a guide to correct robot (x,y) positioning.
-        ##    robot_x, robot_y = frame_before.position[0], frame_before.position[1]
-        ##    result = RANDOM_FOREST.predict([[robot_x,robot_y]]) # I use [[]] to avoid warnings...
-        ##    result = np.squeeze(result) # So it's just (2,)
-        ##    new_x, new_y = result[0], result[1]
-        ##    pos = [new_x, new_y, post[2]]
-        ##    arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
+        else:
+            # (2) Use our RANDOM_FORESTS to act as a guide to correct rotations and positioning.
+
+            # (2a) ROTATE the end-effectors, without moving (x,y,z), IF on third or fourth seed.
+            # Here, `rot` already contains what we want since we haven't rotated from home position.
+            # Be sure to use the same position, specified in `pos`. Keep xy and rotations separate!
+            if i == 2 or i == 3:
+                pred_rot = rf_rot.predict([[rot.yaw_deg, rot.pitch_deg, rot.roll_deg]])
+                pred_rot = np.squeeze(pred_rot) # So it's just (3,)
+                rot = tfx.tb_angles(pred_rot[0], pred_rot[1], pred_rot[2])
+                print("Current frame: {}".format(frame_before_rotation))
+                print("pred_rot: {} and rot: {}".format(pred_rot, rot))
+                arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
+
+            # (2b) MOVE to correct location, with height even, using same rotation!
+            # This might be the one we started with or the one from the `if` case above.
+            frame = arm.get_current_cartesian_position()
+            robot_x, robot_y = frame.position[0], frame.position[1]
+            result = rf_xy.predict([[robot_x,robot_y]])
+            result = np.squeeze(result) # So it's just (2,)
+            new_x, new_y = result[0], result[1]
+            pos = [new_x, new_y, post[2]]
+            print("Current frame: {}".format(frame))
+            print("predicted position: {}".format(pos))
+            arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
 
         # (3) Move gripper *downwards* to target object (ideally), using new frame.
         # Keep its (new) rotation, *not* the one I sent as the function input, if I changed it.

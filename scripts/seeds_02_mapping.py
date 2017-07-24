@@ -109,6 +109,7 @@ def visualize(rf):
 if __name__ == "__main__":
     data = load_open_loop_data(DATA_FILE)
 
+    # Note that the xy's will have smaller L2 error since their units are smaller.
     rf_rot        = train(data['X_rot'],        data['Y_rot'])
     rf_xy         = train(data['X_xy'],         data['Y_xy'])
     rf_rot_camera = train(data['X_rot_camera'], data['Y_rot_camera'])
