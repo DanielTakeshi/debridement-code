@@ -1,4 +1,6 @@
 """
+Note: this is for ONE arm, i.e. the left arm, PSM1.
+
 This script handles the wrist calibration of the robot to image frame.
 More precisely, I (Daniel Seita) will use this to figure out how to do 
 camera calibration assuming a fixed height. I also assume that we use
@@ -41,18 +43,18 @@ def initializeRobots():
     return (r1,r2,d)
 
 
-def storeData(filename, arm1, arm2):
+def storeData(filename, arm1):
     """ 
-    Stores data by repeatedly appending tuples of (arm1,arm2) data points for 
-    the file. Then other code can simply enumerate over the whole thing. This
-    is with respect to a single camera, remember that (but wrt both _arms_).
+    Stores data by repeatedly appending arm1 data points for  the file. 
+    Then other code can simply enumerate over the whole thing. This is
+    with respect to a single camera, remember that.
     """
     f = open(filename, 'a')
-    pickle.dump((arm1, arm2), f)
+    pickle.dump(arm1, f)
     f.close()
 
 
-def calibrateImage(contours, img, arm1, arm2, filename):
+def calibrateImage(contours, img, arm1, filename):
     """ Perform camera calibration using a fixed height and one image.
     
     Important note! When calling `cv2.waitKey(0)`, that will make the 
@@ -62,18 +64,14 @@ def calibrateImage(contours, img, arm1, arm2, filename):
     actually a contour, press the escape key to ignore this step.
 
     This code saves the camera pixels (cX,cY) and the robot coordinates 
-    (the (pos,rot) for _each_ arm) all in one pickle file. Then, not in
+    (the (pos,rot) for ONE arm) all in one pickle file. Then, not in
     this code, we run regression to get our desired mapping from pixel 
     space to robot space. Whew. It's manual, but worth it.
     """
     arm1.home()
-    arm2.home()
     arm1.close_gripper()
-    arm2.close_gripper()
     print("(after calling `home`) psm1 current position: {}".format(
         arm1.get_current_cartesian_position()))
-    print("(after calling `home`) psm2 current position: {}".format(
-        arm2.get_current_cartesian_position()))
     print("len(contours): {}".format(len(contours)))
 
     for i, (cX, cY, approx, peri) in enumerate(contours):  
@@ -99,45 +97,21 @@ def calibrateImage(contours, img, arm1, arm2, filename):
         arm1.home()
         arm1.close_gripper()
 
-        # Deal with the right camera
-        cv2.circle(rimg, (cX,cY), 50, (0,0,255))
-        cv2.drawContours(rimg , [approx], -1, (0,255,0), 3)
-        cv2.imshow("Right Calibration PSM", rimg)
-        key2 = cv2.waitKey(0)
-
-        if key2 != 27:
-            # Get position and orientation of the arm, save, & reset.
-            frame = arm2.get_current_cartesian_position()
-            pos = tuple(frame.position[:3])
-            rot = tfx.tb_angles(frame.rotation)
-            rot = (rot.yaw_deg, rot.pitch_deg, rot.roll_deg)
-            a2 = (pos, rot, cX, cY)
-            print("contour {}, a2={}".format(i,a2))
-        else:
-            print("(not storing contour {} on the right)".format(i))
-        arm2.home()
-        arm2.close_gripper()
-
         # Only store this contour if both keys were not escape keys.
-        if key1 != 27 and key2 != 27:
-            storeData(filename, a1, a2)
-
+        if key1 != 27:
+            storeData(filename, a1)
         cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    arm1, arm2, d = initializeRobots()
+    arm1, _, d = initializeRobots()
     arm1.close_gripper()
-    arm2.close_gripper()
-    #cv2.imwrite(IMDIR+"left_camera_image.png",  d.left_image)
-    #cv2.imwrite(IMDIR+"right_camera_image.png", d.right_image)
+    cv2.imwrite(IMDIR+"left_camera_image.png",  d.left_image)
     #cv2.imshow("Left Camera Image", d.left_image)
-    #cv2.imshow("Right Camera Image", d.right_image)
     #cv2.waitKey(0)
 
     # NOTE! IMPORTANT! CHANGE THIS!
-    vv = str(3).zfill(2)
+    vv = str(0).zfill(2)
 
     # left and then right calibration
-    calibrateImage(d.left_contours,  d.left_image,  arm1, arm2, 'config/daniel_left_camera_v'+vv+'.p')
-    calibrateImage(d.right_contours, d.right_image, arm1, arm2, 'config/daniel_right_camera_v'+vv+'.p')
+    calibrateImage(d.left_contours,  d.left_image,  arm1, 'config/daniel_final_calib_v'+vv+'.p')

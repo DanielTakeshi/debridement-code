@@ -1,5 +1,7 @@
 # Calibration
 
+(Note: some of them are in the `old_configs` if I'm no longer using them.)
+
 ## Version 01
 
 This was my first attempt, done Tuesday July 11. It's a bit rough, I wouldn't use this as I got results that were quite off when I tried. The dataset is fairly small.
