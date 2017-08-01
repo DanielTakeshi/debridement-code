@@ -1,20 +1,21 @@
 """
-I'll do the open-loop here for an experiment which DOES NOT use rotations. This --- version 03 --- uses
-the flat tissue phantom that Steve gave me which is now at the correct height.
+I'll do the open-loop here for an experiment which involves ROTATIONS. This --- version 04 --- uses
+the flat tissue phantom that Steve gave me which ALSO has the RAISED BARRIER.
 
     (1) EIGHT seeds, must pick in some order (say right to left as usual).
-    (2) There is NO BARRIER HERE. This is just to show some base case.
-    (3) Ideally, we show that open loop fails, but simple behavioral cloning through time works. Don't
-        use rotations here!
+    (2) There IS A BARRIER here. We will have to enforce two rotations!! They are at the 5th and 6th
+        out of the eight seeds, so if zero-indexing, thery're the 4th and 5th indices. I do these from
+        right to left so it doesn't matter which of the 4th or 5th indices they use.
+    (3) Ideally, we show that open loop fails badly, but simple behavioral cloning through time works
+        to a somewhat acceptable level. 
     (4) To be clear, WE ARE STILL DOING CALIBRATION. Once we move to a location via our matrix, we have
-        to manually apply an adjustment, which happens in ONE step, where we move the (x,y) location to
-        a better spot.
-    (5) So repeat for all seeds. Thus, this demonstration involves EIGHT time steps.
+        to manually apply an adjustment. For six of these there is one (x,y) movement. For two others
+        (and we know which of those two, since I move from right to left) I ROTATE FIRST, then move. It
+        is much easier to do it that way rather than the other way around.
+    (5) So repeat for all seeds. Thus, each human demonstration involves TEN time steps.
 
-Make sure I exit early if all eight seeds are not detected correctly!
-
-I think perhaps success should also be measured based on how many seeds we actually can pick up. 
-I'm not optimistic about all 8 getting picked up.
+REMINDER: do rotations then move. So for stuff other than indices 4 and 5, I should hit the space bar 
+FIRST, then move! Obviously, make sure I exit early if all eight seeds are not detected correctly!
 """
 
 import environ
@@ -34,14 +35,16 @@ COLLECT_DEMOS = True    # Set False for test-time evaluation.
 
 RF_REGRESSOR   = 'config/daniel_final_mono_map_00.p'
 IMDIR          = 'scripts/images/'
-DEMO_FILE_NAME = 'data/demos_seeds_03.p'
-RANDOM_FORESTS = 'data/demos_seeds_03_four_mappings.p'
+DEMO_FILE_NAME = 'data/demos_seeds_04.p'
+RANDOM_FORESTS = 'data/demos_seeds_04_four_mappings.p'
 
 # Requires some tweaking. NOTE: might be better to set vertical offset much lower than during
 # real applications, because then we won't keep damaging our seeds!
 ARM1_LCAM_HEIGHT = -0.16864652
 EXTRA_HEIGHT     = 0.015
 VERTICAL_OFFSET  = 0.008
+
+ROTATION_INDICES = [4, 5]
 
 
 def get_num_stuff(filename):
@@ -61,8 +64,6 @@ def save_images(d):
     """ For debugging/visualization. """
     cv2.imwrite(IMDIR+"left_proc.png",  d.left_image_proc)
     cv2.imwrite(IMDIR+"left_gray.png",  d.left_image_gray)
-    #cv2.imwrite(IMDIR+"right_proc.png", d.right_image_proc)
-    #cv2.imwrite(IMDIR+"right_gray.png", d.right_image_gray)
 
 
 def call_wait_key(nothing=None):
@@ -79,14 +80,6 @@ def show_images(d):
     #call_wait_key(cv2.imshow("Left Gray",      d.left_image_gray))
     call_wait_key(cv2.imshow("Left BoundBox",  d.left_image_bbox))
     #call_wait_key(cv2.imshow("Left Circles",   d.left_image_circles))
-
-    #call_wait_key(cv2.imshow("Right Processed", d.right_image_proc))
-    #call_wait_key(cv2.imshow("Right Gray",      d.right_image_gray))
-    #call_wait_key(cv2.imshow("Right BoundBox",  d.right_image_bbox))
-    #call_wait_key(cv2.imshow("Right Circles",   d.right_image_circles))
-
-    print("Circles (left):\n{}".format(d.left_circles))
-    print("Circles (right):\n{}".format(d.right_circles))
 
 
 def initializeRobots(sleep_time=5):
@@ -135,13 +128,25 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
         # Note: rott contains the tuple, tfx.tb_angles means we have to call rot.yaw_deg, etc.
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
 
-        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
-        frame_before_moving = arm.get_current_cartesian_position()
-        print("frame before moving: {}".format(frame_before_moving))
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.02)
+        frame_before_rotation = arm.get_current_cartesian_position()
+        print("frame before rotation: {}".format(frame_before_rotation))
 
         if COLLECT_DEMOS:
             # (2) IMPORTANT. HUMAN-GUIDED STUFF HAPPENS HERE! 
             # If I need to abort, press ESC and this won't add to the pickle file.
+
+            # (2a) ROTATE the end-effectors but don't move anything else. Then press any key.
+            # If we don't need to rotate, press any key but just don't add to the demo list.
+            time.sleep(1)
+            call_wait_key(cv2.imshow("DO ROTATION (if necessary, else just press key other than escape)", d.left_image_gray))
+            cv2.destroyAllWindows()
+            frame_before_moving = arm.get_current_cartesian_position()
+            print("frame before moving: {}".format(frame_before_moving))
+            if i in ROTATION_INDICES:
+                demo.append((frame_before_rotation, frame_before_moving, pt_camera, 'rotation'))
+
+            # (2b) MOVE to correct location, keeping height as even as possible. Then press any key.
             time.sleep(1)
             call_wait_key(cv2.imshow("DO XY MOVEMENT (always)", d.left_image_gray))
             cv2.destroyAllWindows()
@@ -151,8 +156,20 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
 
         else:
             # (2) Use our RANDOM_FORESTS to act as a guide to correct rotations and positioning.
-            # MOVE to correct location, with height even, using same rotation! This might be the
-            # one we started with or the one from the `if` case above.
+
+            # (2a) ROTATE the end-effectors, without moving (x,y,z), IF on third or fourth seed.
+            # Here, `rot` already contains what we want since we haven't rotated from home position.
+            # Be sure to use the same position, specified in `pos`. Keep xy and rotations separate!
+            if i in ROTATION_INDICES:
+                pred_rot = rf_rot.predict([[rot.yaw_deg, rot.pitch_deg, rot.roll_deg]])
+                pred_rot = np.squeeze(pred_rot) # So it's just (3,)
+                rot = tfx.tb_angles(pred_rot[0], pred_rot[1], pred_rot[2])
+                print("Current frame: {}".format(frame_before_rotation))
+                print("pred_rot: {} and rot: {}".format(pred_rot, rot))
+                arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
+
+            # (2b) MOVE to correct location, with height even, using same rotation!
+            # This might be the one we started with or the one from the `if` case above.
             frame = arm.get_current_cartesian_position()
             robot_x, robot_y = frame.position[0], frame.position[1]
             result = rf_xy.predict([[robot_x,robot_y]])
@@ -182,7 +199,7 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
         arm.home(open_gripper=False)
         arm.open_gripper(degree=90, time_sleep=2)
 
-    # Store the demonstration --- a list of eight tuples --- if not using the regressor.
+    # Store the demonstration --- a list of TEN tuples --- if not using the regressor.
     arm.home()
     if COLLECT_DEMOS:
         f = open(DEMO_FILE_NAME, 'a')

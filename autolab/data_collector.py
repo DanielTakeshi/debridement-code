@@ -48,8 +48,8 @@ class DataCollector:
         #### For the rectangular material.
         ###self.lx, self.ly, self.lw, self.lh = 400, 300, 850, 350        
         ###self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
-        # For the actual phantom that Steve gave me.
-        self.lx, self.ly, self.lw, self.lh = 550, 250, 700, 700        
+        # For both (flat vs barrier) of the two tissue phantoms that Steve gave me.
+        self.lx, self.ly, self.lw, self.lh = 550, 250, 725, 700        
         self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
