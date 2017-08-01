@@ -117,6 +117,7 @@ def load_open_loop_data(filename):
     # Turn everything into numpy arrays. Then return the dictionary of lists!
     for key in data:
         data[key] = np.array(data[key])
+        print("data[{}].shape: {}".format(key, data[key].shape))
     print("data[all_seeds].shape: {}".format(data['all_seeds'].shape))
     return data
 
@@ -128,7 +129,7 @@ def train(X, Y, key):
     Y_pred = reg.predict(X)
     avg_l2_train = np.sum((Y_pred-Y)*(Y_pred-Y), axis=1)
     avg_l2 = np.mean(avg_l2_train)
-    print("{}, avg(|| ytarg-ypred ||_2^2) = {:.6f}".format(key, avg_l2))
+    print("{}, avg(|| ytarg-ypred ||_2^2) = {:.7f}".format(key, avg_l2))
     return reg
 
 
@@ -139,11 +140,11 @@ def visualize(rf):
 
 if __name__ == "__main__":
     data = load_open_loop_data(DATA_FILE)
-
     forests = {}
     for key in data:
         assert len(data[key].shape) == 2 and data[key].shape[1] == 4
-        X_train, Y_train = data[key][:2], data[key][2:]
+        X_train = data[key][:, :2]
+        Y_train = data[key][:, 2:]
         rf = train(X_train, Y_train, key=key)
         forests[key] = rf
     pickle.dump(forests, open(OUT_FILE, 'wb'))
