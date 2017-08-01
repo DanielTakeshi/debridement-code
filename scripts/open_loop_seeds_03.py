@@ -22,6 +22,7 @@ from dvrk.robot import *
 from autolab.data_collector import DataCollector
 import cv2
 import numpy as np
+import os
 import pickle
 import sys
 
@@ -33,7 +34,7 @@ TOPK_CONTOURS = 8
 COLLECT_DEMOS = True    # Set False for test-time evaluation.
 
 RF_REGRESSOR   = 'config/daniel_final_mono_map_00.p'
-IMDIR          = 'scripts/images/'
+IMDIR          = 'images/seeds_03'
 DEMO_FILE_NAME = 'data/demos_seeds_03.p'
 RANDOM_FORESTS = 'data/demos_seeds_03_four_mappings.p'
 
@@ -79,14 +80,7 @@ def show_images(d):
     #call_wait_key(cv2.imshow("Left Gray",      d.left_image_gray))
     call_wait_key(cv2.imshow("Left BoundBox",  d.left_image_bbox))
     #call_wait_key(cv2.imshow("Left Circles",   d.left_image_circles))
-
-    #call_wait_key(cv2.imshow("Right Processed", d.right_image_proc))
-    #call_wait_key(cv2.imshow("Right Gray",      d.right_image_gray))
-    #call_wait_key(cv2.imshow("Right BoundBox",  d.right_image_bbox))
-    #call_wait_key(cv2.imshow("Right Circles",   d.right_image_circles))
-
-    print("Circles (left):\n{}".format(d.left_circles))
-    print("Circles (right):\n{}".format(d.right_circles))
+    #print("Circles (left):\n{}".format(d.left_circles))
 
 
 def initializeRobots(sleep_time=5):
@@ -234,8 +228,10 @@ def motion_planning(contours_by_size, img, arm, arm_map):
         print(i,cX,cY)
 
     # Show image with contours + exact centers. Exit if it's not looking good.
-    cv2.imshow("Image with topK contours (exit if not looking good)", img_for_drawing)
+    index = len(os.listdir(IMDIR))
+    cv2.imshow("Image with topK contours (exit if not looking good, index is {})".format(index), img_for_drawing)
     call_wait_key()
+    cv2.imwrite(IMDIR+"/im_"+str(index)+".png",  img_for_drawing)
     cv2.destroyAllWindows()
 
     # Manage predictions, store in `ypred_arm_full`.
