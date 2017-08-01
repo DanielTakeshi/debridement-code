@@ -21,7 +21,7 @@ IMDIR = "scripts/images/"
 
 # See `config/daniel_mono_stats_v02_and_v03.txt`. I think arm1 (respectively, arm2) 
 # should be equivalent (in theory) for both cameras. There's inevitable noise here.
-ARM1_LCAM_HEIGHT = -0.16191448
+ARM1_LCAM_HEIGHT = -0.16864652
 ARM2_LCAM_HEIGHT = -0.12486849
 ARM1_RCAM_HEIGHT = -0.16305105
 ARM2_RCAM_HEIGHT = -0.12607518
@@ -108,17 +108,17 @@ def motion_planning(contours_by_size, img, arm1, arm2, arm1map, arm2map, left=Tr
         arm1.close_gripper()
     arm1.home()
 
-    print("")
-    # Then do arm2, with arm2's home angles. Yeah...
-    for i,pt_camera in enumerate(places_to_visit):
-        arm_pt = ypred_arm2_full[i]
-        print("moving arm2 to pixel point {} ...".format(pt_camera))
-        post,rott = (tuple(arm_pt), (180.0,-20.0,160.0))
-        pos = [post[0], post[1], post[2]]
-        rot = tfx.tb_angles(rott[0], rott[1], rott[2])
-        arm2.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
-        arm2.home()
-        arm2.close_gripper()
+    ### print("")
+    ### # Then do arm2, with arm2's home angles. Yeah...
+    ### for i,pt_camera in enumerate(places_to_visit):
+    ###     arm_pt = ypred_arm2_full[i]
+    ###     print("moving arm2 to pixel point {} ...".format(pt_camera))
+    ###     post,rott = (tuple(arm_pt), (180.0,-20.0,160.0))
+    ###     pos = [post[0], post[1], post[2]]
+    ###     rot = tfx.tb_angles(rott[0], rott[1], rott[2])
+    ###     arm2.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
+    ###     arm2.home()
+    ###     arm2.close_gripper()
     arm2.home()
 
 
@@ -136,8 +136,12 @@ if __name__ == "__main__":
     cv2.waitKey(0)
 
     # Load the Random Forest regressors. We saved in tuples, hence load into tuples.
-    left_arm1_map,  left_arm2_map  = pickle.load(open('config/daniel_left_mono_model_v02_and_v03.p'))
-    right_arm1_map, right_arm2_map = pickle.load(open('config/daniel_right_mono_model_v02_and_v03.p'))
+    #left_arm1_map,  left_arm2_map  = pickle.load(open('config/daniel_left_mono_model_v02_and_v03.p'))
+    #right_arm1_map, right_arm2_map = pickle.load(open('config/daniel_right_mono_model_v02_and_v03.p'))
+
+    # Update: I don't actually use the left arm 2 map ... sorry. Only for backwards compatibility ... 
+    left_arm1_map = pickle.load(open('config/daniel_final_mono_map_00.p'))
+    left_arm2_map = pickle.load(open('config/daniel_final_mono_map_00.p'))
 
     print("\nTesting motion planning using the _left_ camera image.")
     motion_planning(contours_by_size=d.left_contours_by_size, 
@@ -146,10 +150,10 @@ if __name__ == "__main__":
                     arm2=arm2, 
                     arm1map=left_arm1_map,
                     arm2map=left_arm2_map)
-    print("\nTesting motion planning using the _right_ camera image.")
-    motion_planning(contours_by_size=d.right_contours_by_size, 
-                    img=d.right_image, 
-                    arm1=arm1,
-                    arm2=arm2, 
-                    arm1map=right_arm1_map,
-                    arm2map=right_arm2_map)
+    #print("\nTesting motion planning using the _right_ camera image.")
+    #motion_planning(contours_by_size=d.right_contours_by_size, 
+    #                img=d.right_image, 
+    #                arm1=arm1,
+    #                arm2=arm2, 
+    #                arm1map=right_arm1_map,
+    #                arm2map=right_arm2_map)
