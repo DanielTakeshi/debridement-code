@@ -42,11 +42,14 @@ class DataCollector:
         self.right_image_circles = None
 
         # To get a bounding box of points, to filter away any nonsense.
-        # For the square material.
-        #self.lx, self.ly, self.lw, self.lh = 350, 200, 750, 700        
-        #self.rx, self.ry, self.rw, self.rh = 300, 200, 700, 700        
-        # For the rectangular material.
-        self.lx, self.ly, self.lw, self.lh = 400, 300, 850, 350        
+        #### For the square material.
+        ###self.lx, self.ly, self.lw, self.lh = 350, 200, 750, 700        
+        ###self.rx, self.ry, self.rw, self.rh = 300, 200, 700, 700        
+        #### For the rectangular material.
+        ###self.lx, self.ly, self.lw, self.lh = 400, 300, 850, 350        
+        ###self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
+        # For the actual phantom that Steve gave me.
+        self.lx, self.ly, self.lw, self.lh = 550, 250, 700, 700        
         self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
@@ -217,7 +220,7 @@ class DataCollector:
                     cX = int(M["m10"] / M["m00"])
                     cY = int(M["m01"] / M["m00"])
                     # Enforce it to be within bounding box AND away from each other by a certain `rtol` pixels.
-                    if (xx < cX < xx+ww) and (yy < cY < yy+hh) and self._not_duplicate(duplicates, cX, cY, rtol=50):
+                    if (xx < cX < xx+ww) and (yy < cY < yy+hh) and self._not_duplicate(duplicates, cX, cY, rtol=75):
                         contained_cnts.append(c)
                         duplicates.append((cX,cY))
                 except:
