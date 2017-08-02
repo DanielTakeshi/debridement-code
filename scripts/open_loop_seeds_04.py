@@ -1,4 +1,5 @@
 """
+This is for collecting human demos AND open loop AND bcloning AND bcloning per time.
 I'll do the open-loop here for an experiment which involves ROTATIONS. This --- version 04 --- uses
 the flat tissue phantom that Steve gave me which ALSO has the RAISED BARRIER.
 
@@ -15,7 +16,8 @@ the flat tissue phantom that Steve gave me which ALSO has the RAISED BARRIER.
     (5) So repeat for all seeds. Thus, each human demonstration involves TEN time steps.
 
 REMINDER: do rotations then move. So for stuff other than indices 4 and 5, I should hit the space bar 
-FIRST, then move! Obviously, make sure I exit early if all eight seeds are not detected correctly!
+FIRST, then move! Obviously, make sure I exit early if all eight seeds are not detected correctly! Of
+course, I don't have to worry about the space bar if I set `COLLECT_DEMOS = False`.
 """
 
 import environ
@@ -23,6 +25,7 @@ from dvrk.robot import *
 from autolab.data_collector import DataCollector
 import cv2
 import numpy as np
+import os
 import pickle
 import sys
 
@@ -31,19 +34,21 @@ import sys
 ###########################
 ESC_KEY       = 27
 TOPK_CONTOURS = 8 
-COLLECT_DEMOS = True    # IMPORTANT!! True if we need human demos, false for test-time evaluation.
-DEMO_TYPE     = 'open'  # 'open' (i.e. no random forests), 'bcloning', or 'bcloning_time'.
+COLLECT_DEMOS = False    # IMPORTANT!! True if we need human demos, false for test-time evaluation.
+DEMO_TYPE     = 'bcloning'  # 'open' (i.e. no random forests), 'bcloning', or 'bcloning_time'.
 
 IMDIR          = 'images/seeds_04'
 RF_REGRESSOR   = 'config/daniel_final_mono_map_00.p'
 DEMO_FILE_NAME = 'data/demos_seeds_04.p'
 RANDOM_FORESTS = 'data/demos_seeds_04_maps.p'
 
-# Requires some tweaking. NOTE: might be better to set vertical offset much lower than during
-# real applications, because then we won't keep damaging our seeds!
+# Requires some tweaking. NOTE: might be better to set vertical offset much lower than during real
+# applications, because then we won't damage our seeds. For offsets, use same settings from case 3.
 ARM1_LCAM_HEIGHT = -0.16864652
-EXTRA_HEIGHT     = 0.015
-VERTICAL_OFFSET  = 0.008 # Use 0.008 for collecting demos.
+EXTRA_HEIGHT     = 0.018
+VERTICAL_OFFSET  = 0.015
+EXTRA_OFFSET     = {0: -0.001, 1: 0.000, 2: 0.002, 3: 0.002, 4: 0.003, 5: 0.003, 6: 0.005, 7: 0.005} # Don't ask. :-(
+CLOSE_ANGLE      = 10
 ROTATION_INDICES = [4, 5]
 
 
@@ -115,7 +120,8 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
 
     # Used if we're doing test-time rollouts and thus NOT collecting demonstrations.
     if not COLLECT_DEMOS:
-        rf_rot, rf_xy, rf_rot_camera, rf_xy_camera = pickle.load(open(RANDOM_FORESTS))
+        if DEMO_TYPE == 'bcloning' or DEMO_TYPE == 'bcloning_time':
+            rand_forests = pickle.load(open(RANDOM_FORESTS))
 
     for i,pt_camera in enumerate(places_to_visit):
         arm_pt = ypred_arm_full[i]
@@ -127,7 +133,6 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
 
         # Note: rott contains the tuple, tfx.tb_angles means we have to call rot.yaw_deg, etc.
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
-
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.02)
         frame_before_rotation = arm.get_current_cartesian_position()
         print("frame before rotation: {}".format(frame_before_rotation))
@@ -154,28 +159,37 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
             print("frame after xy moving: {}".format(frame_after_xy_move))
             demo.append((frame_before_moving, frame_after_xy_move, pt_camera, 'xy'))
 
-        else:
+        elif DEMO_TYPE == 'bcloning' or DEMO_TYPE == 'bcloning_time':
             # (2) Use our RANDOM_FORESTS to act as a guide to correct rotations and positioning.
 
-            # (2a) ROTATE the end-effectors, without moving (x,y,z), IF on third or fourth seed.
+            # (2a) ROTATE the end-effectors, without moving (x,y,z), IF on fifth or sixth seed.
             # Here, `rot` already contains what we want since we haven't rotated from home position.
             # Be sure to use the same position, specified in `pos`. Keep xy and rotations separate!
             if i in ROTATION_INDICES:
-                pred_rot = rf_rot.predict([[rot.yaw_deg, rot.pitch_deg, rot.roll_deg]])
+
+                if DEMO_TYPE == 'bcloning':
+                    pred_rot = rand_forests['all_rotations'].predict([[rot.yaw_deg, rot.pitch_deg, rot.roll_deg]])
+                elif DEMO_TYPE == 'bcloning_time':
+                    pred_rot = rand_forests['rotation_'+str(i)].predict([[rot.yaw_deg, rot.pitch_deg, rot.roll_deg]])
                 pred_rot = np.squeeze(pred_rot) # So it's just (3,)
+
                 rot = tfx.tb_angles(pred_rot[0], pred_rot[1], pred_rot[2])
                 print("Current frame: {}".format(frame_before_rotation))
                 print("pred_rot: {} and rot: {}".format(pred_rot, rot))
                 arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
 
-            # (2b) MOVE to correct location, with height even, using same rotation!
-            # This might be the one we started with or the one from the `if` case above.
+            # (2b) MOVE to correct location, with height even, using same rotation! Might be the
+            # one we started with or the one from the `if` case above if we had to alter rotation.
             frame = arm.get_current_cartesian_position()
             robot_x, robot_y = frame.position[0], frame.position[1]
-            result = rf_xy.predict([[robot_x,robot_y]])
+
+            if DEMO_TYPE == 'bcloning':
+                result = rand_forests['all_seeds'].predict([[robot_x,robot_y]])
+            elif DEMO_TYPE == 'bcloning_time':
+                result = rand_forests['seed_'+str(i)].predict([[robot_x,robot_y]])
             result = np.squeeze(result) # So it's just (2,)
-            new_x, new_y = result[0], result[1]
-            pos = [new_x, new_y, post[2]]
+
+            pos = [result[0], result[1], post[2]]
             print("Current frame: {}".format(frame))
             print("predicted position: {}".format(pos))
             arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
@@ -187,12 +201,12 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
         if COLLECT_DEMOS:
             pos = (frame.position[:3])
             rot = tfx.tb_angles(frame.rotation) 
-        pos[2] -= VERTICAL_OFFSET
+        pos[2] -= (VERTICAL_OFFSET+EXTRA_OFFSET[i])
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
 
         # (4) Close gripper and move *upwards*, ideally grabbing the object.
-        arm.open_gripper(degree=15, time_sleep=2)
-        pos[2] += VERTICAL_OFFSET
+        arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2)
+        pos[2] += (VERTICAL_OFFSET+EXTRA_OFFSET[i])
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
 
         # (5) Finally, home the robot, then open the gripper to drop something (ideally).

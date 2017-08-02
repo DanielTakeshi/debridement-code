@@ -159,12 +159,14 @@ if __name__ == "__main__":
     data = load_open_loop_data(DATA_FILE)
     forests = {}
     for key in data:
+        index = 2
         if 'rotation' in key:
             assert len(data[key].shape) == 2 and data[key].shape[1] == 6
+            index = 3
         else:
             assert len(data[key].shape) == 2 and data[key].shape[1] == 4
-        X_train = data[key][:, :2]
-        Y_train = data[key][:, 2:]
+        X_train = data[key][:, :index]
+        Y_train = data[key][:, index:]
         rf = train(X_train, Y_train, key=key)
         forests[key] = rf
     pickle.dump(forests, open(OUT_FILE, 'wb'))
