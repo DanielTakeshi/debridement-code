@@ -31,19 +31,19 @@ import sys
 ###########################
 ESC_KEY       = 27
 TOPK_CONTOURS = 8 
-COLLECT_DEMOS = True    # Set False for test-time evaluation.
+COLLECT_DEMOS = True    # IMPORTANT!! True if we need human demos, false for test-time evaluation.
+DEMO_TYPE     = 'open'  # 'open' (i.e. no random forests), 'bcloning', or 'bcloning_time'.
 
-RF_REGRESSOR   = 'config/daniel_final_mono_map_00.p'
 IMDIR          = 'images/seeds_04'
+RF_REGRESSOR   = 'config/daniel_final_mono_map_00.p'
 DEMO_FILE_NAME = 'data/demos_seeds_04.p'
-RANDOM_FORESTS = 'data/demos_seeds_04_four_mappings.p'
+RANDOM_FORESTS = 'data/demos_seeds_04_maps.p'
 
 # Requires some tweaking. NOTE: might be better to set vertical offset much lower than during
 # real applications, because then we won't keep damaging our seeds!
 ARM1_LCAM_HEIGHT = -0.16864652
 EXTRA_HEIGHT     = 0.015
-VERTICAL_OFFSET  = 0.008
-
+VERTICAL_OFFSET  = 0.008 # Use 0.008 for collecting demos.
 ROTATION_INDICES = [4, 5]
 
 
@@ -237,10 +237,17 @@ def motion_planning(contours_by_size, img, arm, arm_map):
         cY = int(M["m01"] / M["m00"])
         places_to_visit.append((cX,cY))
 
-    # Collect only top K places to visit and insert ordering preferences.
+    # Collect only top K places to visit and insert ordering preferences. I do right to left,
+    # but also I group into four rough columns and go bottom to top for all of them.
     places_to_visit = places_to_visit[:TOPK_CONTOURS]
     places_to_visit = sorted(places_to_visit, key=lambda x:x[0], reverse=True)
     num_points = len(places_to_visit)
+    for i in range(0, len(places_to_visit), 2):
+        point_i   = places_to_visit[i]
+        point_ip1 = places_to_visit[i+1]
+        if point_i[1] < point_ip1[1]:
+            places_to_visit[i]   = point_ip1
+            places_to_visit[i+1] = point_i
 
     # Number the places to visit in an image so I see them.
     for i,(cX,cY) in enumerate(places_to_visit):
@@ -272,6 +279,7 @@ def motion_planning(contours_by_size, img, arm, arm_map):
 
 if __name__ == "__main__":
     """ See the top of the file for program-wide arguments. """
+    assert DEMO_TYPE in ['open', 'bcloning', 'bcloning_time']
     arm1, _, d = initializeRobots(sleep_time=4)
     arm1.home()
     print("arm1 home: {}".format(arm1.get_current_cartesian_position()))

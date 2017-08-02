@@ -25,6 +25,7 @@ In terms of angle limits, looks like (at least on the left arm, psm1):
 from autolab.data_collector import *
 from dvrk.robot import *
 from config.constants import *
+import sys
 import time
 
 
@@ -39,6 +40,21 @@ psm1 = robot("PSM1")
 psm2 = robot("PSM2")
 print("\nOfficial home position for psm1: {}".format(HOME_POSITION_PSM1))
 print("Official home position for psm2: {}".format(HOME_POSITION_PSM2))
+
+
+# Quick test
+rot = (0.0, 0.0, -160.0)
+rot = tfx.tb_angles(rot[0], rot[1], rot[2])
+
+pos1 = [0.020, 0.081, -0.16]
+psm1.move_cartesian_frame_linear_interpolation(tfx.pose(pos1, rot), 0.03)
+print(psm1.get_current_cartesian_position())
+
+pos2 = [0.064, 0.041, -0.16]
+psm1.move_cartesian_frame_linear_interpolation(tfx.pose(pos2, rot), 0.03)
+print(psm1.get_current_cartesian_position())
+sys.exit()
+
 print("\npsm1 current position: {}".format(psm1.get_current_cartesian_position()))
 print("psm2 current position: {}".format(psm2.get_current_cartesian_position()))
 print("psm1 current JOINT position: {}".format(psm1.get_current_joint_position()))

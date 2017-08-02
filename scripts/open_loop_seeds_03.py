@@ -15,6 +15,8 @@ Make sure I exit early if all eight seeds are not detected correctly!
 
 I think perhaps success should also be measured based on how many seeds we actually can pick up. 
 I'm not optimistic about all 8 getting picked up.
+
+This is for collecting human demos AND open loop AND bcloning AND bcloning per time.
 """
 
 import environ
@@ -31,18 +33,21 @@ import sys
 ###########################
 ESC_KEY       = 27
 TOPK_CONTOURS = 8 
-COLLECT_DEMOS = True    # Set False for test-time evaluation.
+COLLECT_DEMOS = False    # IMPORTANT!! True if we need human demos, false for test-time evaluation.
+DEMO_TYPE     = 'bcloning_time'  # 'open' (i.e. no random forests), 'bcloning', or 'bcloning_time'.
 
-RF_REGRESSOR   = 'config/daniel_final_mono_map_00.p'
 IMDIR          = 'images/seeds_03'
+RF_REGRESSOR   = 'config/daniel_final_mono_map_00.p'
 DEMO_FILE_NAME = 'data/demos_seeds_03.p'
-RANDOM_FORESTS = 'data/demos_seeds_03_four_mappings.p'
+RANDOM_FORESTS = 'data/demos_seeds_03_maps.p'
 
 # Requires some tweaking. NOTE: might be better to set vertical offset much lower than during
 # real applications, because then we won't keep damaging our seeds!
 ARM1_LCAM_HEIGHT = -0.16864652
 EXTRA_HEIGHT     = 0.015
-VERTICAL_OFFSET  = 0.008
+VERTICAL_OFFSET  = 0.012 # Use 0.008 for collecting demos, 0.012 for actual rollouts.
+EXTRA_OFFSET     = {0: 0.0, 1: 0.0, 2: 0.002, 3: 0.002, 4: 0.004, 5: 0.004, 6: 0.005, 7: 0.005} # Don't ask. :-(
+CLOSE_ANGLE      = 10
 
 
 def get_num_stuff(filename):
@@ -116,7 +121,8 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
 
     # Used if we're doing test-time rollouts and thus NOT collecting demonstrations.
     if not COLLECT_DEMOS:
-        rf_rot, rf_xy, rf_rot_camera, rf_xy_camera = pickle.load(open(RANDOM_FORESTS))
+        if DEMO_TYPE == 'bcloning' or DEMO_TYPE == 'bcloning_time':
+            rand_forests = pickle.load(open(RANDOM_FORESTS))
 
     for i,pt_camera in enumerate(places_to_visit):
         arm_pt = ypred_arm_full[i]
@@ -128,14 +134,14 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
 
         # Note: rott contains the tuple, tfx.tb_angles means we have to call rot.yaw_deg, etc.
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
-
-        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.025)
         frame_before_moving = arm.get_current_cartesian_position()
         print("frame before moving: {}".format(frame_before_moving))
 
         if COLLECT_DEMOS:
             # (2) IMPORTANT. HUMAN-GUIDED STUFF HAPPENS HERE! 
             # If I need to abort, press ESC and this won't add to the pickle file.
+
             time.sleep(1)
             call_wait_key(cv2.imshow("DO XY MOVEMENT (always)", d.left_image_gray))
             cv2.destroyAllWindows()
@@ -143,16 +149,20 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
             print("frame after xy moving: {}".format(frame_after_xy_move))
             demo.append((frame_before_moving, frame_after_xy_move, pt_camera, 'xy'))
 
-        else:
+        elif DEMO_TYPE == 'bcloning' or DEMO_TYPE == 'bcloning_time':
             # (2) Use our RANDOM_FORESTS to act as a guide to correct rotations and positioning.
             # MOVE to correct location, with height even, using same rotation! This might be the
             # one we started with or the one from the `if` case above.
+
             frame = arm.get_current_cartesian_position()
             robot_x, robot_y = frame.position[0], frame.position[1]
-            result = rf_xy.predict([[robot_x,robot_y]])
+            if DEMO_TYPE == 'bcloning':
+                result = rand_forests['all_seeds'].predict([[robot_x,robot_y]])
+            elif DEMO_TYPE == 'bcloning_time':
+                result = rand_forests['seed_'+str(i)].predict([[robot_x,robot_y]])
             result = np.squeeze(result) # So it's just (2,)
-            new_x, new_y = result[0], result[1]
-            pos = [new_x, new_y, post[2]]
+
+            pos = [result[0], result[1], post[2]]
             print("Current frame: {}".format(frame))
             print("predicted position: {}".format(pos))
             arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
@@ -160,16 +170,17 @@ def one_human_demonstration(places_to_visit, d, arm, ypred_arm_full):
         # (3) Move gripper *downwards* to target object (ideally), using new frame.
         # Keep its (new) rotation, *not* the one I sent as the function input, if I changed it.
         # If doing the demo, we need to get new pos and new rotation. Otherwise, use old ones.
+
         frame = arm.get_current_cartesian_position()
         if COLLECT_DEMOS:
             pos = (frame.position[:3])
             rot = tfx.tb_angles(frame.rotation) 
-        pos[2] -= VERTICAL_OFFSET
+        pos[2] -= (VERTICAL_OFFSET+EXTRA_OFFSET[i])
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
 
         # (4) Close gripper and move *upwards*, ideally grabbing the object.
-        arm.open_gripper(degree=15, time_sleep=2)
-        pos[2] += VERTICAL_OFFSET
+        arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2)
+        pos[2] += (VERTICAL_OFFSET+EXTRA_OFFSET[i])
         arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), SAFE_SPEED)
 
         # (5) Finally, home the robot, then open the gripper to drop something (ideally).
@@ -214,10 +225,17 @@ def motion_planning(contours_by_size, img, arm, arm_map):
         cY = int(M["m01"] / M["m00"])
         places_to_visit.append((cX,cY))
 
-    # Collect only top K places to visit and insert ordering preferences.
+    # Collect only top K places to visit and insert ordering preferences. I do right to left,
+    # but also I group into four rough columns and go bottom to top for all of them.
     places_to_visit = places_to_visit[:TOPK_CONTOURS]
     places_to_visit = sorted(places_to_visit, key=lambda x:x[0], reverse=True)
     num_points = len(places_to_visit)
+    for i in range(0, len(places_to_visit), 2):
+        point_i   = places_to_visit[i]
+        point_ip1 = places_to_visit[i+1]
+        if point_i[1] < point_ip1[1]:
+            places_to_visit[i]   = point_ip1
+            places_to_visit[i+1] = point_i
 
     # Number the places to visit in an image so I see them.
     for i,(cX,cY) in enumerate(places_to_visit):
@@ -231,7 +249,8 @@ def motion_planning(contours_by_size, img, arm, arm_map):
     index = len(os.listdir(IMDIR))
     cv2.imshow("Image with topK contours (exit if not looking good, index is {})".format(index), img_for_drawing)
     call_wait_key()
-    cv2.imwrite(IMDIR+"/im_"+str(index)+".png",  img_for_drawing)
+    if COLLECT_DEMOS:
+        cv2.imwrite(IMDIR+"/im_"+str(index)+".png",  img_for_drawing)
     cv2.destroyAllWindows()
 
     # Manage predictions, store in `ypred_arm_full`.
@@ -249,6 +268,7 @@ def motion_planning(contours_by_size, img, arm, arm_map):
 
 if __name__ == "__main__":
     """ See the top of the file for program-wide arguments. """
+    assert DEMO_TYPE in ['open', 'bcloning', 'bcloning_time']
     arm1, _, d = initializeRobots(sleep_time=4)
     arm1.home()
     print("arm1 home: {}".format(arm1.get_current_cartesian_position()))
