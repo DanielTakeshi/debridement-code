@@ -35,7 +35,7 @@ import sys
 ESC_KEY       = 27
 TOPK_CONTOURS = 8 
 COLLECT_DEMOS = False    # IMPORTANT!! True if we need human demos, false for test-time evaluation.
-DEMO_TYPE     = 'bcloning'  # 'open' (i.e. no random forests), 'bcloning', or 'bcloning_time'.
+DEMO_TYPE     = 'bcloning_time'  # 'open' (i.e. no random forests), 'bcloning', or 'bcloning_time'.
 
 IMDIR          = 'images/seeds_04'
 RF_REGRESSOR   = 'config/daniel_final_mono_map_00.p'
@@ -275,7 +275,8 @@ def motion_planning(contours_by_size, img, arm, arm_map):
     index = len(os.listdir(IMDIR))
     cv2.imshow("Image with topK contours (exit if not looking good, index is {})".format(index), img_for_drawing)
     call_wait_key()
-    cv2.imwrite(IMDIR+"/im_"+str(index)+".png",  img_for_drawing)
+    if COLLECT_DEMOS:
+        cv2.imwrite(IMDIR+"/im_"+str(index)+".png",  img_for_drawing)
     cv2.destroyAllWindows()
 
     # Manage predictions, store in `ypred_arm_full`.
