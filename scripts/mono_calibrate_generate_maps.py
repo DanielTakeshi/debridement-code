@@ -81,7 +81,7 @@ def train(X, Y, arm=' left', X_valid=None, Y_valid=None, n_estimators=10):
         avg_l2_train = np.sum((Y_pred-Y)*(Y_pred-Y), axis=1)
     avg_l2 = np.mean(avg_l2_train)
 
-    print("for {}, avg(|| ytarg-ypred ||_2^2) = {:.6f}".format(arm, avg_l2))
+    print("for {}, avg(|| ytarg-ypred ||_2^2) = {:.7f}".format(arm, avg_l2))
     if do_validation:
         return reg, avg_l2
     else:
@@ -107,7 +107,7 @@ def print_statistics(data):
 
 if __name__ == "__main__":
     """ Do regression on one arm. """
-    num_trees = 5
+    num_trees = 100
     data = loadData('config/daniel_final_calib_v00.p')
     print_statistics(data)
     X,Y = dataToMatrix(data)

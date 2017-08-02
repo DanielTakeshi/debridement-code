@@ -46,7 +46,7 @@ RANDOM_FORESTS = 'data/demos_seeds_03_maps.p'
 ARM1_LCAM_HEIGHT = -0.16864652
 EXTRA_HEIGHT     = 0.015
 VERTICAL_OFFSET  = 0.012 # Use 0.008 for collecting demos, 0.012 for actual rollouts.
-EXTRA_OFFSET     = {0: 0.0, 1: 0.0, 2: 0.002, 3: 0.002, 4: 0.004, 5: 0.004, 6: 0.005, 7: 0.005} # Don't ask. :-(
+EXTRA_OFFSET     = {0: -0.001, 1: 0.000, 2: 0.002, 3: 0.002, 4: 0.004, 5: 0.004, 6: 0.005, 7: 0.005} # Don't ask. :-(
 CLOSE_ANGLE      = 10
 
 

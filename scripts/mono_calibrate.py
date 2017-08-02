@@ -1,4 +1,6 @@
 """
+UPDATE: don't use this script. Use `mono_calibrate_onearm.py`.
+
 This script handles the wrist calibration of the robot to image frame.
 More precisely, I (Daniel Seita) will use this to figure out how to do 
 camera calibration assuming a fixed height. I also assume that we use
