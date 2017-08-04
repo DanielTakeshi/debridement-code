@@ -108,11 +108,11 @@ def print_statistics(data):
 if __name__ == "__main__":
     """ Do regression on one arm. """
     num_trees = 100
-    data = loadData('config/daniel_final_calib_v00.p')
+    data = loadData('config/daniel_final_calib_v01.p')
     print_statistics(data)
     X,Y = dataToMatrix(data)
     pp = np.random.permutation(len(X))
     X = X[pp]
     Y = Y[pp]
     regl = train(X, Y[:,0:2], n_estimators=num_trees)
-    pickle.dump(regl, open('config/daniel_final_mono_map_00.p','wb'))
+    pickle.dump(regl, open('config/daniel_final_mono_map_01.p','wb'))

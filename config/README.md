@@ -1,5 +1,9 @@
 # Calibration
 
+I used `final_calib` version 0, but I messed up the cameras. I'm now using version 1 and this time I saved the bounding box so I can cross-reference with this later. Hopefully that will resolve things.
+I'm also trying to do my visuals for the random forest regressor to see where calibration is going wrong.
+
+
 (Note: some of them are in the `old_configs` if I'm no longer using them.)
 
 ## Version 01

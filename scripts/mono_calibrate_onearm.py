@@ -16,6 +16,7 @@ those cases, USE THE ESCAPE KEY. Then it will not store that contour.
 Advice:
 
     - Keep the surgical camera fixed! (It's adjustable, but stable.)
+            AGAIN DO NOT CHANGE THE LOCATION!!
     - Do roughly one or two matchings per circle. If a contour repeats
             in the same spot, just press ESCAPE to save time.
     - Try not to move the gauze. If it's shifted, move it back to a 
@@ -32,7 +33,7 @@ import cv2
 import numpy as np
 import pickle
 import sys
-IMDIR = "scripts/images/"
+IMDIR = "images/"
 
 
 def initializeRobots():
@@ -106,12 +107,12 @@ def calibrateImage(contours, img, arm1, filename):
 if __name__ == "__main__":
     arm1, _, d = initializeRobots()
     arm1.close_gripper()
-    cv2.imwrite(IMDIR+"left_camera_image.png",  d.left_image)
+    #cv2.imwrite(IMDIR+"left_camera_image.png",  d.left_image)
     #cv2.imshow("Left Camera Image", d.left_image)
     #cv2.waitKey(0)
 
     # NOTE! IMPORTANT! CHANGE THIS!
-    vv = str(0).zfill(2)
+    vv = str(1).zfill(2)
 
     # left and then right calibration
     calibrateImage(d.left_contours,  d.left_image,  arm1, 'config/daniel_final_calib_v'+vv+'.p')

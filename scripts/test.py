@@ -27,32 +27,73 @@ from dvrk.robot import *
 from config.constants import *
 import sys
 import time
+import cv2
+import numpy as np
+ESC_KEY = 27
 
 
-# Initialize sensor readings
-d = DataCollector()
-print("Unique identifier, could be useful: {}".format(d.identifier))
+def initializeRobots():
+    d = DataCollector()
+    r1 = robot("PSM1") # left (but my right)
+    r2 = robot("PSM2") # right (but my left)
+    time.sleep(2)
+    return (r1,r2,d)
 
 
-# Initialize robot and move to home positions. Be careful, easy to forget if using "1" or "2". (:
-time.sleep(3)
-psm1 = robot("PSM1")
-psm2 = robot("PSM2")
-print("\nOfficial home position for psm1: {}".format(HOME_POSITION_PSM1))
-print("Official home position for psm2: {}".format(HOME_POSITION_PSM2))
+def call_wait_key(nothing=None):
+    """ I have an ESC which helps me exit program. """
+    key = cv2.waitKey(0)
+    if key == ESC_KEY:
+        print("Pressed ESC key. Terminating program...")
+        sys.exit()
+
+
+right_clicks = []
+def mouse_callback(event, x, y, flags, params):
+    if event == cv2.EVENT_LBUTTONCLICK:
+        #store the coordinates of the right-click event
+        right_clicks.append([x, y])
+        #this just verifies that the mouse data is being collected 
+        #you probably want to remove this later 
+        print right_clicks
+    else:
+        print("event: {}".format(event))
+
+
+#########################
+## TESTING BEGINS HERE ##
+#########################
+
+arm1, arm2, d = initializeRobots()
+arm1.home()
+arm2.home()
+#call_wait_key(cv2.imshow("Left Image",  d.left_image))
+image = d.left_image.copy()
+
+cv2.namedWindow('image')
+cv2.setMouseCallback('image', mouse_callback)
+cv2.imshow("Image result", image)
+cv2.waitKey(0)
+
+print("right_clicks: {}".format(right_clicks))
+sys.exit()
+
+
+
+
 
 
 # Quick test
+psm1.close_gripper()
 rot = (0.0, 0.0, -160.0)
 rot = tfx.tb_angles(rot[0], rot[1], rot[2])
 
 pos1 = [0.020, 0.081, -0.16]
 psm1.move_cartesian_frame_linear_interpolation(tfx.pose(pos1, rot), 0.03)
-print(psm1.get_current_cartesian_position())
-
-pos2 = [0.064, 0.041, -0.16]
-psm1.move_cartesian_frame_linear_interpolation(tfx.pose(pos2, rot), 0.03)
-print(psm1.get_current_cartesian_position())
+psm1.home()
+psm1.close_gripper()
+psm1.move_cartesian_frame_linear_interpolation(tfx.pose(pos1, rot), 0.03)
+psm1.home(open_gripper=False)
 sys.exit()
 
 print("\npsm1 current position: {}".format(psm1.get_current_cartesian_position()))

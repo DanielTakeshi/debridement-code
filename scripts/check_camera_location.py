@@ -38,6 +38,12 @@ def fix_calibration():
 def save_bounding_box(image):
     cv2.imwrite(IMDIR+'calibration_blank_image.jpg', image)
     cv2.rectangle(image, (xx,yy), (xx+ww, yy+hh), (0,255,0), 2)
+
+    cv2.putText(img=image, text='{},{}'.format(xx,yy),       org=(xx,yy),       fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,0), thickness=2)
+    cv2.putText(img=image, text='{},{}'.format(xx,yy+hh),    org=(xx,yy+hh),    fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,0), thickness=2)
+    cv2.putText(img=image, text='{},{}'.format(xx+ww,yy),    org=(xx+ww,yy),    fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,0), thickness=2)
+    cv2.putText(img=image, text='{},{}'.format(xx+ww,yy+hh), org=(xx+ww,yy+hh), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,0), thickness=2)
+
     cv2.imshow("Left Camera Image", image)
     cv2.waitKey(0)
     cv2.imwrite(IMDIR+'calibration_bbox_image.jpg', image)
