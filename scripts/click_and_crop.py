@@ -69,7 +69,7 @@ def click_and_crop(event, x, y, flags, param):
         cv2.circle(img=updated_image_copy, center=CENTER_OF_BOXES[-1], radius=6, color=(0,0,255), thickness=-1)
         cv2.putText(img=updated_image_copy, text="{}".format(CENTER_OF_BOXES[-1]), org=CENTER_OF_BOXES[-1], 
                     fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2)
-        cv2.imshow("This is in the click and crop method AFTER the rectangle. (Press any key.)", updated_image_copy)
+        cv2.imshow("This is in the click and crop method AFTER the rectangle. (Press any key, or ESC If I made a mistake.)", updated_image_copy)
 
 
 if __name__ == "__main__":
@@ -105,23 +105,31 @@ if __name__ == "__main__":
             cv2.putText(img=updated_image_copy, text="{}".format((cX,cY)), org=(cX,cY), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255,0,0), thickness=2)
 
             # Now we apply the callback and drag a box around the end-effector on the (updated!) image.
-            window_name = "Robot has tried to move to ({},{}). Click and drag a box around its end effector. Then press any key.".format(cX,cY)
+            window_name = "Robot has tried to move to ({},{}). Click and drag a box around its end effector. Then press any key (or ESC if I made mistake).".format(cX,cY)
             cv2.namedWindow(window_name)
             cv2.setMouseCallback(window_name, click_and_crop)
             cv2.imshow(window_name, updated_image_copy)
             key = cv2.waitKey(0)
+            if key in ESC_KEYS:
+                continue
 
             # Now save the image with the next available index. It will contain the contours.
             index = len(os.listdir(IMDIR))
             cv2.imwrite(IMDIR+"/point_"+str(index).zfill(2)+".png", updated_image_copy)
             cv2.destroyAllWindows()
  
-            # Get position and orientation of the arm, save, & reset. Be careful that I understand `data_pt` ordering!
+            # Get position and orientation of the arm, save, & reset. Be careful that I understand `data_pt` ordering! 
+            # I.e. the target_pos is what the random forest predicted for the target position.
             frame = arm.get_current_cartesian_position()
-            pos = tuple(frame.position[:3])
-            rot = tfx.tb_angles(frame.rotation)
-            rot = (rot.yaw_deg, rot.pitch_deg, rot.roll_deg)
-            data_pt = (pos, rot, (cX,cY), CENTER_OF_BOXES[-1]) # Save the center of the bounding box.
+            new_pos = tuple(frame.position[:3])
+            new_rot = tfx.tb_angles(frame.rotation)
+            new_rot = (new_rot.yaw_deg, new_rot.pitch_deg, new_rot.roll_deg)
+            data_pt = {'target_pos': pos,
+                       'target_rot': ROTATION,
+                       'actual_pos': new_pos,
+                       'actual_rot': new_rot,
+                       'center_target_pixels': (cX,cY),
+                       'center_actual_pixels': CENTER_OF_BOXES[-1]}
             storeData(OUTPUT_FILE, data_pt)
 
             # Some stats for debugging, etc.
