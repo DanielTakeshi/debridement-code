@@ -13,10 +13,10 @@ import sys
 from autolab.data_collector import DataCollector
 from dvrk.robot import *
 
-# Double check these as needed.
-IMDIR           = 'images/check_regressors/'
+# Double check these as needed. Check v01 as well.
+IMDIR           = 'images/check_regressors_v01/'
 ORIGINAL_IMAGE  = 'images/check_calibration/calibration_blank_image.jpg'
-OUTPUT_FILE     = 'visuals_calibration/data_v00.p'
+OUTPUT_FILE     = 'visuals_calibration/data_v01.p' # First trial was `data_v00.p`.
 RF_REGRESSOR    = 'config/daniel_final_mono_map_01.p'
 ESC_KEYS        = [27, 1048603] # IDK why I need 1048603 ...
 ARM1_ZCOORD     = -0.16873688

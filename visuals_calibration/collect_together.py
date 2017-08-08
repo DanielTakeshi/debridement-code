@@ -18,10 +18,11 @@ import os
 import pickle
 import sys
 
-# Double check these as needed.
+# Double check these as needed, especially the versions.
 ORIGINAL_IMAGE  = 'images/check_calibration/calibration_blank_image.jpg'
 IM_VISUALS_DIR  = 'images/visuals/'
-IM_VISUALS_FILE = 'visuals_calibration/data_v00.p'
+VV              = '00'
+IM_VISUALS_FILE = 'visuals_calibration/data_v'+VV+'.p'
 
 
 def load_data(filename):
@@ -84,8 +85,8 @@ def make_fancy_image(image, visuals):
 
     cv2.imshow("Image v01", im_v01)
     key = cv2.waitKey(0)
-    cv2.imwrite(IM_VISUALS_DIR+'calib_image_v00.png', image)
-    cv2.imwrite(IM_VISUALS_DIR+'calib_image_v01.png', im_v01)
+    cv2.imwrite(IM_VISUALS_DIR+'calib_image_v'+VV+'_nolines.png', image)
+    cv2.imwrite(IM_VISUALS_DIR+'calib_image_v'+VV+'_yeslines.png', im_v01)
 
 
 if __name__ == "__main__":

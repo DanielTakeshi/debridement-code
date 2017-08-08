@@ -198,6 +198,9 @@ class DataCollector:
         # Sort contours in rough left to right, up to down ordering.
         processed_countours = sorted(processed_countours, key = lambda x: x[0])
         processed_countours = sorted(processed_countours, key = lambda x: x[1])
+        ## # Reverse direction!
+        ## processed_countours = sorted(processed_countours, key = lambda x: x[0], reverse=True)
+        ## processed_countours = sorted(processed_countours, key = lambda x: x[1], reverse=True)
         return processed_countours
 
 
