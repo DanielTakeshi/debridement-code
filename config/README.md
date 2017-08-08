@@ -3,8 +3,16 @@
 I used `final_calib` version 0, but I messed up the cameras. I'm now using version 1 and this time I saved the bounding box so I can cross-reference with this later. Hopefully that will resolve things.
 I'm also trying to do my visuals for the random forest regressor to see where calibration is going wrong.
 
+EDIT: also added a linear regression map. Thus use one of the two:
 
-(Note: some of them are in the `old_configs` if I'm no longer using them.)
+- `daniel_final_mono_map_01.p` (random forest with 100 trees)
+- `daniel_final_mono_lin-regression_01.p` (normal linear regression with intercept term)
+
+I tried normalizing the data for linear regression but found no improvement. I saved the tuple of meanX and stdX in `mean_X,std_X.p`, though I am unlikely to need it.
+
+# Older Stuff
+
+The stuff below are in the `old_configs` and thus not to be used.
 
 ## Version 01
 
