@@ -13,13 +13,15 @@ import sys
 from autolab.data_collector import DataCollector
 from dvrk.robot import *
 
-# Double check these as needed. Check v01 as well.
-IMDIR           = 'images/check_regressors_v01/'
+# Double check these as needed. CHECK THE NUMBERS, i.e. v00, v01, etc.
+VERSION_NUMBER  = '02'
+
+IMDIR           = 'images/check_regressors_v'+VERSION_NUMBER+'/'
+OUTPUT_FILE     = 'visuals_calibration/data_v'+VERSION_NUMBER+'.p'
 ORIGINAL_IMAGE  = 'images/check_calibration/calibration_blank_image.jpg'
-OUTPUT_FILE     = 'visuals_calibration/data_v01.p' # First trial was `data_v00.p`.
-RF_REGRESSOR    = 'config/daniel_final_mono_map_01.p'
-ESC_KEYS        = [27, 1048603] # IDK why I need 1048603 ...
-ARM1_ZCOORD     = -0.16873688
+RF_REGRESSOR    = 'config/daniel_final_mono_map_01.p' # This is NOT using VERSION_NUMBER ...
+ESC_KEYS        = [27, 1048603] # IDK why I need 1048603 ... but regardless it works now.
+ARM1_ZCOORD     = -0.16873688 + 0.001 # Add offset to avoid repeatedly damaging the paper.
 ROTATION        = (0.0, 0.0, -160.0)
 
 # initialize the list of reference points 
