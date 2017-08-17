@@ -47,13 +47,19 @@ def initializeRobots():
 
 def storeData(filename, arm1):
     """ 
-    Stores data by repeatedly appending arm1 data points for  the file. 
-    Then other code can simply enumerate over the whole thing. This is
-    with respect to a single camera, remember that.
+    Stores data by repeatedly appending arm1 data points for the file. Then other
+    code simply enumerates over the whole thing. This is wrt a single camera.
     """
     f = open(filename, 'a')
     pickle.dump(arm1, f)
     f.close()
+
+
+def filter_point(x,y):
+    ignore = False
+    if (x < 500 or x > 1500 or y < 75 or y > 1000):
+        ignore = True
+    return ignore
 
 
 def calibrateImage(contours, img, arm1, outfile):
@@ -75,6 +81,8 @@ def calibrateImage(contours, img, arm1, outfile):
     num_saved = 0
 
     for i, (cX, cY, approx, peri) in enumerate(contours):  
+        if filter_point(cX, cY):
+            continue
         image = img.copy()
 
         # Deal with the image and get a visual.
@@ -115,12 +123,13 @@ if __name__ == "__main__":
     #cv2.imshow("Left Camera Image", d.left_image)
     #cv2.waitKey(0)
 
-    # Calibrate using the left and then the right images.
-    calibrateImage(contours = d.left_contours, 
-                   img = d.left_image, 
-                   arm1 = arm1, 
-                   outfile = 'config/calib_circlegrid_left_v'+VERSION+'.p')
+    # Calibrate using the left and right images. Doing right first since that camera seems
+    # to be blurry in one of the regions so it's not detecting two of the contours. :-(
     calibrateImage(contours = d.right_contours, 
                    img = d.right_image, 
                    arm1 = arm1, 
                    outfile = 'config/calib_circlegrid_right_v'+VERSION+'.p')
+    calibrateImage(contours = d.left_contours, 
+                   img = d.left_image, 
+                   arm1 = arm1, 
+                   outfile = 'config/calib_circlegrid_left_v'+VERSION+'.p')

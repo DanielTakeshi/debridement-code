@@ -1,5 +1,15 @@
 # Calibration
 
+
+- `calib_circlegrid_left_v00_ONELIST.p` and the one for `right` contain ONE LIST with all the data needed. They are of length 36.
+- The `backup` directory has the original pickle files where we have to load one by one. I had to make the lists since I mistakenly double counted one of the circles (but I knew which one, don't worry...) and manually removed it. The point is, it's easier to load it in with one list, so I changed it to do that!
+
+
+
+# Older Stuff (don't look at it...)
+
+Do not look at this ..
+
 I used `final_calib` version 0, but I messed up the cameras. I'm now using version 1 and this time I saved the bounding box so I can cross-reference with this later. Hopefully that will resolve things.
 I'm also trying to do my visuals for the random forest regressor to see where calibration is going wrong.
 
@@ -10,7 +20,7 @@ EDIT: also added a linear regression map. Thus use one of the two:
 
 I tried normalizing the data for linear regression but found no improvement. I saved the tuple of meanX and stdX in `mean_X,std_X.p`, though I am unlikely to need it.
 
-# Older Stuff
+# Even Older Stuff
 
 The stuff below are in the `old_configs` and thus not to be used.
 

@@ -189,7 +189,7 @@ class DataCollector:
                 M = cv2.moments(c)
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                if self._not_duplicate(duplicates, cX, cY, rtol=2):
+                if self._not_duplicate(duplicates, cX, cY, rtol=5):
                     duplicates.append((cX,cY))
                     processed_countours.append((cX, cY, approx, peri))
             except:
