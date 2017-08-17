@@ -49,6 +49,7 @@ def storeData(filename, arm1):
     """ 
     Stores data by repeatedly appending arm1 data points for the file. Then other
     code simply enumerates over the whole thing. This is wrt a single camera.
+    UPDATE: Actually I manually changed version 00 to be a single list. :-)
     """
     f = open(filename, 'a')
     pickle.dump(arm1, f)
