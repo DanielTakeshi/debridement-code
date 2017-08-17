@@ -77,12 +77,14 @@ class DataCollector:
         if self.info['l']:
             return
         self.info['l'] = msg
+        #pickle.dump(self.info['l'], open('config/camera_info_matrices/left.p', 'w'))
 
 
     def right_info_callback(self, msg):
         if self.info['r']:
             return
         self.info['r'] = msg
+        #pickle.dump(self.info['r'], open('config/camera_info_matrices/right.p', 'w'))
 
 
     def left_image_callback(self, msg):
@@ -100,7 +102,8 @@ class DataCollector:
         self.left_image_bbox = self.make_bounding_box(self.left_image_gray.copy(), x,y,w,h)
 
         self.left_contours = self.get_contours(self.left_image_proc, self.left_apply_bbox)
-        self.left_contours_by_size = self.get_contours_by_size(self.left_image_proc, self.left_apply_bbox, x,y,w,h)
+        self.left_contours_by_size = self.get_contours_by_size(self.left_image_proc, 
+                self.left_apply_bbox, x,y,w,h)
 
         # Handle circles ... must be handled delicately. Apply bbox if desired.
         self.left_circles = self.get_circles_list(self.left_image_proc, self.left_apply_bbox, x,y,w,h)
@@ -119,7 +122,8 @@ class DataCollector:
         self.right_image_bbox = self.make_bounding_box(self.right_image_gray.copy(), x,y,w,h)
 
         self.right_contours = self.get_contours(self.right_image_proc, self.right_apply_bbox)
-        self.right_contours_by_size = self.get_contours_by_size(self.right_image_proc, self.right_apply_bbox, x,y,w,h)
+        self.right_contours_by_size = self.get_contours_by_size(self.right_image_proc, 
+                self.right_apply_bbox, x,y,w,h)
 
         # Handle circles ... must be handled delicately. Apply bbox if desired.
         self.right_circles = self.get_circles_list(self.right_image_proc, self.right_apply_bbox, x,y,w,h)
