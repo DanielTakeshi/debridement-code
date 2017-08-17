@@ -21,7 +21,7 @@ left_yy = 100
 left_ww = 775
 left_hh = 700
 
-right_xx = 550
+right_xx = 575
 right_yy = 100
 right_ww = 775
 right_hh = 700
@@ -47,8 +47,9 @@ def save_bounding_box(image, left):
     yy = left_yy if left else right_yy
     ww = left_ww if left else right_ww
     hh = left_hh if left else right_hh
+    name = 'left' if left else 'right'
 
-    cv2.imwrite(DIR+'calibration_blank_image.jpg', image)
+    cv2.imwrite(DIR+'calibration_blank_image_'+name+'.jpg', image)
     cv2.rectangle(image, (xx,yy), (xx+ww, yy+hh), (0,255,0), 2)
 
     cv2.putText(img=image, text='{},{}'.format(xx,yy),       org=(xx,yy),       
@@ -63,7 +64,7 @@ def save_bounding_box(image, left):
     cv2.imshow("Camera Image w/BBox", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    cv2.imwrite(DIR+'calibration_bbox_image.jpg', image)
+    cv2.imwrite(DIR+'calibration_bbox_image_'+name+'.jpg', image)
 
 
 if __name__ == "__main__":
@@ -72,8 +73,8 @@ if __name__ == "__main__":
 
     image = d.left_image.copy()
     save_bounding_box(image, left=True)
-    pickle.dump(d.left_contours, open(DIR+'contours_left', 'w'))
+    pickle.dump(d.left_contours, open(DIR+'contours_left.p', 'w'))
 
     image = d.right_image.copy()
     save_bounding_box(image, left=False)
-    pickle.dump(d.right_contours, open(DIR+'contours_right', 'w'))
+    pickle.dump(d.right_contours, open(DIR+'contours_right.p', 'w'))
