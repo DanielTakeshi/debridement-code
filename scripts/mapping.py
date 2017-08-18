@@ -19,6 +19,7 @@ LEFT_POINTS  = pickle.load(open('config/calib_circlegrid_left_v00_ONELIST.p',  '
 RIGHT_POINTS = pickle.load(open('config/calib_circlegrid_right_v00_ONELIST.p', 'r'))
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
+NUM_POINTS   = len(LEFT_POINTS)
 
 ESC_KEYS     = [27, 1048603]
 
@@ -33,13 +34,16 @@ def initializeRobots():
 
 def debug_1(left, right, points3d):
     print("\nSome debug prints:")
+    print("robot points in left/right camera (we'll average later):")
     for i,(pt1,pt2) in enumerate(zip(LEFT_POINTS, RIGHT_POINTS)):
         print(i,np.squeeze(pt1[0]),np.squeeze(pt2[0]))
+    print("pixel pts in left/right camera:")
     for i,(pt1,pt2) in enumerate(zip(left, right)):
         print(i,pt1,pt2)
+    print("camera points:")
     for i,item in enumerate(points_3d):
         print(i,np.squeeze(item))
-    print("points_3d.shape: {}".format(points_3d.shape))
+    print("(camera) points_3d.shape: {}".format(points_3d.shape))
     print("End of debug prints.\n")
 
 
@@ -123,25 +127,46 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     D = np.eye(3)
     D[2,2] = np.linalg.det( U.dot(V.T) )
     R = U.dot(D).dot(V.T)
-    t = meanA - R.dot(meanB)
-    rigid_body_matrix = np.concatenate((R, t), axis=1)
+    t = meanB - R.dot(meanA)
+    RB_matrix = np.concatenate((R, t), axis=1)
 
     if debug:
         print("\nBegin debug prints:")
         print("meanA:\n{}\nmeanB:\n{}".format(meanA, meanB))
         print("Rotation R:\n{}\nand R^TR (should be identity):\n{}".format(R, (R.T).dot(R)))
         print("translation t:\n{}".format(t))
-        print("rigid_body_matrix:\n{}".format(rigid_body_matrix))
+        print("RB_matrix:\n{}".format(RB_matrix))
+
+        # Get residual to inspect quality of solution. Use homogeneous coordinates for A.
+        # Also, recall that we're dealing with (3,N) matrices, not (N,3).
+        # In addition, we don't want to zero-mean for real applications.
+        A = camera_points_3d.T # (3,N)
+        B = robot_points_3d.T  # (3,N)
+
+        ones_vec = np.ones((1, A.shape[1]))
+        A_h = np.concatenate((A, ones_vec), axis=0)
+        B_pred = RB_matrix.dot(A_h)
+        assert B_pred.shape == B.shape
+
+        raw_errors = B-B_pred
+        l2_per_example = np.sum((B-B_pred)*(B-B_pred), axis=0)
+        frobenius_loss = np.mean(l2_per_example)
+
+        # Sanity checks. 
+        print("\nCamera points (input), A.T:\n{}".format(A.T))
+        print("Robot points (target), B.T:\n{}".format(B.T))
+        print("Predicted robot points:\n{}".format(B_pred.T))
+        print("Raw errors, B-B_pred:\n{}".format((B-B_pred).T))
+        print("Residual (L2) for each:\n{}".format(l2_per_example.T))
+        print("loss on data: {}".format(frobenius_loss))
+
         print("End of debug prints.\n")
-
-    # Get residual to inspect quality of solution.
-
-    return rigid_body_matrix
+    return RB_matrix
 
 
 if __name__ == "__main__":
-    arm1, _, d = initializeRobots()
-    arm1.close_gripper()
+    #arm1, _, d = initializeRobots()
+    #arm1.close_gripper()
 
     # Get the 3D **camera** points.
     assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
@@ -159,4 +184,7 @@ if __name__ == "__main__":
     robot_3d = np.array(robot_3d)
 
     rigid_body_matrix = solve_rigid_transform(camera_points_3d=points_3d,
-                                              robot_points_3d=robot_3d)
+                                              robot_points_3d=robot_3d,
+                                              debug=True)
+
+    #
