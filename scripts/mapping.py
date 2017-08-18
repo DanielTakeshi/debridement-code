@@ -39,26 +39,11 @@ def debug_1(left, right, points3d):
     print("End of debug prints.\n")
 
 
-def get_points_3d(left_points, right_points, info):
-    """ 
-    Assumes that corresponding (2-D pixel) points are ordered correctly 
-    in `left_points` and `right_points`. Returns a list of 3D camera points.
-    https://github.com/BerkeleyAutomation/endoscope_calibration/blob/master/rigid_transformation.py
-    """
-    points_3d = []
-    for i in range(len(left_points)):
-        a = left_points[i]
-        b = right_points[i]
-        disparity = np.sqrt((a[0]-b[0]) ** 2 + (a[1]-b[1]) ** 2)
-        pt = convertStereo(a[0], a[1], disparity, info)
-        points_3d.append(pt)
-    return points_3d
-
-
 def convertStereo(u, v, disparity, info):
     """ 
     Converts two pixel coordinates u and v with the disparity to give PointStamped.
     https://github.com/BerkeleyAutomation/endoscope_calibration/blob/master/rigid_transformation.py
+    Hmm ... after looking at this, I really only need the (x,y,z), right?
     """
     stereoModel = image_geometry.StereoCameraModel()
     stereoModel.fromCameraInfo(info['l'], info['r'])
@@ -70,6 +55,23 @@ def convertStereo(u, v, disparity, info):
     return cameraPoint
 
 
+def get_points_3d(left_points, right_points, info):
+    """ 
+    Assumes that corresponding (2-D pixel) points are ordered correctly 
+    in `left_points` and `right_points`. Returns a list of 3D camera points.
+    https://github.com/BerkeleyAutomation/endoscope_calibration/blob/master/rigid_transformation.py
+    """
+    points_3d = []
+    for i in range(len(left_points)):
+        a = left_points[i]
+        b = right_points[i]
+        disparity = np.sqrt((a[0]-b[0]) ** 2 + (a[1]-b[1]) ** 2)
+        assert disparity == np.linalg.norm(a-b)
+        pt = convertStereo(a[0], a[1], disparity, info)
+        points_3d.append(pt)
+    return points_3d
+
+
 def pixels_to_3d():
     """ 
     Call this to start the process of getting camera points from pixels. 
@@ -77,7 +79,7 @@ def pixels_to_3d():
     """
     left = []
     right = []
-    info = {}
+    info = {'l':C_LEFT_INFO, 'r':C_RIGHT_INFO}
 
     # I _think_ ... hopefully this works. There isn't specific documentation.
     for (pt1, pt2) in zip(LEFT_POINTS, RIGHT_POINTS):
@@ -85,8 +87,6 @@ def pixels_to_3d():
         _, _, rx, ry = pt2
         left.append((lx,ly))
         right.append((rx,ry))
-    info['l'] = C_LEFT_INFO
-    info['r'] = C_RIGHT_INFO
 
     pts3d = get_points_3d(left, right, info)
     pts3d_array = np.asarray(np.matrix([(p.point.x, p.point.y, p.point.z) for p in pts3d]))
@@ -114,7 +114,8 @@ def estimate_rf(X_train, Y_train, debug):
 
     Fortunately, this MIGHT not be needed, as I saw that our rigid body errors were 
     at most 2 millimeters in each of the x and y directions. Ironically, the z direction
-    has more error. But hopefully we can just lower it ... I hope.
+    has more error. But hopefully we can just lower it ... I hope. The idea is that given
+    the camera point, the RF should "know" how to correct for the rigid body.
     """
     rf = RandomForestRegressor(n_estimators=100)    
     rf.fit(X_train, Y_train)
@@ -203,6 +204,21 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     X_train = camera_points_3d.T # (N,3)
     Y_train = raw_errors # (3,N)
     rf_residuals = estimate_rf(X_train, Y_train, debug)
+
+    # NOW, finally, let's combine the two! Recall that A, Ah are our camera data.
+    errors = rf_residuals.predict(X_train)
+    assert errors.shape == B_pred.shape
+    B_preds_with_rf = B_pred - errors
+    new_raw_errors = B_preds_with_rf - B # Again, pred-targ.
+    avg_abs_error_old = np.mean(np.abs(raw_errors))
+    avg_abs_error_new = np.mean(np.abs(new_raw_errors))
+
+    print("\nWhat if we COMBINE the rigid body with the RF?:")
+    print("Our predictions, B_pred-errors (so Rigid+RF):\n{}".format(B_preds_with_rf.T))
+    print("NEW raw errors:\n{}".format(new_raw_errors.T))
+    print("avg abs err for RB:    {}".format(avg_abs_error_old))
+    print("avg abs err for RB+RF: {}".format(avg_abs_error_new))
+    print("End of debug prints for rigid transform PLUS RF...\n")
 
     return RB_matrix, rf_residuals
 
