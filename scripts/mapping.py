@@ -164,11 +164,82 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     return RB_matrix
 
 
+def correspond_left_right_pixels(left, right, debug=True):
+    """ This is my custom solution. To check it I should apply it on fixed
+    points and just flip through the two images (literally click on the arrow
+    keys) to see if they overlap.
+
+    The solution is simple least squares. We can split this by column and it becomes
+    minimizing L2 loss, i.e. ordinary linear regression, and solutions are known
+    from the normal equations. But in case I'm paranoid I can just visualize solutions.
+
+    Input: `left` and `right` are lists of (corresponding) tuples representing pixel values.
+    """
+    N = len(left)
+    A = np.concatenate( (np.array(left),  np.ones((N,1))) , axis=1) # Left
+    B = np.concatenate( (np.array(right), np.ones((N,1))) , axis=1) # Right
+    A_nobias = np.array(left)
+    B_nobias = np.array(right)
+
+    # Left to Right
+    col0_l2r = (np.linalg.inv((A.T).dot(A)).dot(A.T)).dot(B[:,0])
+    col1_l2r = (np.linalg.inv((A.T).dot(A)).dot(A.T)).dot(B[:,1])
+    theta_l2r = np.column_stack((col0_l2r, col1_l2r))
+    abs_error_l2r = np.abs(A.dot(theta_l2r) - B_nobias)
+
+    # Right to Left
+    col0_r2l = (np.linalg.inv((B.T).dot(B)).dot(B.T)).dot(A[:,0])
+    col1_r2l = (np.linalg.inv((B.T).dot(B)).dot(B.T)).dot(A[:,1])
+    theta_r2l = np.column_stack((col0_r2l, col1_r2l))
+    abs_error_r2l = np.abs(B.dot(theta_r2l) - A_nobias)
+
+    assert theta_l2r.shape == theta_r2l.shape == (3,2)
+
+    if debug:
+        # Also check the mapping on an actual image.
+        img_left  = cv2.imread('camera_location/calibration_blank_image_left.jpg')
+        img_right = cv2.imread('camera_location/calibration_blank_image_right.jpg')
+        
+        # The lists `left` and `right` have corresponding tuples. If we take (x,y) from
+        # `left`, which is our default camera, say it points to the third circle in a grid.
+        #  We want the matrices to provide us with the pixel points in the *right* camera
+        #  that would overlap with the same conceptual area, i.e. the center of that grid.
+        for (cX,cY) in left:
+            cv2.circle(img_left, (cX,cY), 5, (255,0,0), thickness=-1)
+            cv2.putText(img=img_left, text="{},{}".format(cX,cY), org=(cX,cY), 
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=0.75, color=(255,0,0), thickness=2)
+
+            pt = np.array([cX,cY,1])
+            pt_right = pt.dot(theta_l2r)
+            oX, oY = int(round(pt_right[0])), int(round(pt_right[1]))
+
+            cv2.circle(img_right, (oX,oY), 5, (0,0,255), thickness=-1)
+            cv2.putText(img=img_right, text="{},{}".format(oX,oY), org=(oX,oY), 
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=0.75, color=(0,0,255), thickness=2)
+
+        cv2.imwrite('images/calib_left_w_left_points.jpg', img_left)
+        cv2.imwrite('images/calib_right_w_left_points.jpg', img_right)
+
+        # Now back to traditional debugs.
+        print("\nBegin debug prints:")
+        print("A.shape: {}, and A:\n{}".format(A.shape, A))
+        print("B.shape: {}, and B:\n{}".format(B.shape, B))
+        print("theta for LEFT to RIGHT:\n{}".format(theta_l2r))
+        print("theta for RIGHT to LEFT:\n{}".format(theta_r2l))
+        print("abs_errors l2r (remember, these are pixels):\n{}".format(abs_error_l2r))
+        print("abs_errors r2l (remember, these are pixels):\n{}".format(abs_error_r2l))
+        print("End of debug prints.\n")
+
+    return theta_l2r, theta_r2l
+
+
 if __name__ == "__main__":
     #arm1, _, d = initializeRobots()
     #arm1.close_gripper()
 
-    # Get the 3D **camera** points.
+    # Get the 3D **camera** points. Given two 
     assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
     left, right, points_3d = pixels_to_3d()
     debug_1(left, right, points_3d)
@@ -187,4 +258,14 @@ if __name__ == "__main__":
                                               robot_points_3d=robot_3d,
                                               debug=True)
 
-    #
+    # Develop correspondence between left and right camera pixels. I assume in real
+    # application, we'll only use the left camera at one time, but with this correspondence,
+    # we effectively "pretend" that we know what the right camera is viewing.
+    theta_l2r, theta_r2l = correspond_left_right_pixels(left, right)
+
+    # Save various matrices. I also need a guide to _using_ them.
+    params = {}
+    params['RB_matrix'] = rigid_body_matrix
+    params['theta_l2r'] = theta_l2r
+    params['theta_r2l'] = theta_r2l
+    pickle.dump(params, open('config/params_matrices.p', 'w'))
