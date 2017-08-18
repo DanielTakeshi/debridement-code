@@ -5,6 +5,7 @@ Does the entire mapping pipeline.
 from dvrk.robot import *
 from autolab.data_collector import DataCollector
 from geometry_msgs.msg import PointStamped, Point
+from sklearn.ensemble import RandomForestRegressor
 import image_geometry
 import cv2
 import numpy as np
@@ -101,6 +102,45 @@ def pixels_to_3d():
     return (left, right, pts3d_array)
 
 
+def estimate_rf(X_train, Y_train, debug):
+    """ Hopefully this will narrow down errors even further.
+    
+    X_train: the camera coordinates, array of (x,y,z) stuff, where z is computed via
+            our method here which uses points from both cameras to get depth.
+    Y_train: when we did the rigid transform, we get some error. These residuals are
+            the targets, so (xp-xt,yp-yt,zp-zt) with pred-target for each component.
+            These are raw values, so if we did the reverse we'd have to negate things.
+            
+    In real application, we need to get our camera points. Then, given those camera points,
+    apply the rigid body to get the predicted robot frame point (xp,yp,zp), assuming fixed
+    rotation for now. But, this has some error from that. The RF trained here can predict
+    that, i.e. (xerr,yerr,zerr) = (xp-xt,yp-yt,zp-zt). Thus, we have to do:
+
+        (xp,yp,zp) - (xerr,yerr,zerr)
+
+    to get the new, more robust (hopefully) predictions. E.g. if xerr is 5mm, we keep over-
+    shooting x by 5mm so better bring it down.
+
+    Fortunately, this MIGHT not be needed, as I saw that our rigid body errors were 
+    at most 2 millimeters in each of the x and y directions. Ironically, the z direction
+    has more error. But hopefully we can just lower it ... I hope.
+    """
+    rf = RandomForestRegressor(n_estimators=100)    
+    rf.fit(X_train, Y_train)
+    Y_pred = rf.predict(X_train)
+    avg_l2_train = np.sum((Y_pred-Y_train)*(Y_pred-Y_train), axis=1)
+    avg_l2 = np.mean(avg_l2_train)
+
+    if debug:
+        print("\nBegin debug prints for RFs:")
+        print("X_train.T:\n{}".format(X_train.T))
+        print("Y_train.T:\n{}".format(Y_train.T))
+        print("Y_pred.T:\n{}".format(Y_pred.T))
+        print("avg(|| ytarg-ypred ||_2^2) = {:.6f}".format(avg_l2))
+        print("End debug prints for RFs\n")
+    return rf
+
+
 def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     """
     Takes in two sets of corresponding points, returns the rigid transformation matrix 
@@ -110,6 +150,8 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
 
     Notation: A for camera points, B for robot points, so want to find an affine mapping
     from A -> B with orthogonal rotation and a translation.
+
+    UPDATE: Also returns the random forest for estimating the residual noise!
     """
     assert camera_points_3d.shape == robot_points_3d.shape == (36,3)
     A = camera_points_3d.T # (3,N)
@@ -130,38 +172,48 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     t = meanB - R.dot(meanA)
     RB_matrix = np.concatenate((R, t), axis=1)
 
-    if debug:
-        print("\nBegin debug prints:")
-        print("meanA:\n{}\nmeanB:\n{}".format(meanA, meanB))
-        print("Rotation R:\n{}\nand R^TR (should be identity):\n{}".format(R, (R.T).dot(R)))
-        print("translation t:\n{}".format(t))
-        print("RB_matrix:\n{}".format(RB_matrix))
+    #################
+    # SANITY CHECKS #
+    #################
 
-        # Get residual to inspect quality of solution. Use homogeneous coordinates for A.
-        # Also, recall that we're dealing with (3,N) matrices, not (N,3).
-        # In addition, we don't want to zero-mean for real applications.
-        A = camera_points_3d.T # (3,N)
-        B = robot_points_3d.T  # (3,N)
+    print("\nBegin debug prints for rigid transformation:")
+    print("meanA:\n{}\nmeanB:\n{}".format(meanA, meanB))
+    print("Rotation R:\n{}\nand R^TR (should be identity):\n{}".format(R, (R.T).dot(R)))
+    print("translation t:\n{}".format(t))
+    print("RB_matrix:\n{}".format(RB_matrix))
 
-        ones_vec = np.ones((1, A.shape[1]))
-        A_h = np.concatenate((A, ones_vec), axis=0)
-        B_pred = RB_matrix.dot(A_h)
-        assert B_pred.shape == B.shape
+    # Get residual to inspect quality of solution. Use homogeneous coordinates for A.
+    # Also, recall that we're dealing with (3,N) matrices, not (N,3).
+    # In addition, we don't want to zero-mean for real applications.
+    A = camera_points_3d.T # (3,N)
+    B = robot_points_3d.T  # (3,N)
 
-        raw_errors = B-B_pred
-        l2_per_example = np.sum((B-B_pred)*(B-B_pred), axis=0)
-        frobenius_loss = np.mean(l2_per_example)
+    ones_vec = np.ones((1, A.shape[1]))
+    A_h = np.concatenate((A, ones_vec), axis=0)
+    B_pred = RB_matrix.dot(A_h)
+    assert B_pred.shape == B.shape
 
-        # Sanity checks. 
-        print("\nCamera points (input), A.T:\n{}".format(A.T))
-        print("Robot points (target), B.T:\n{}".format(B.T))
-        print("Predicted robot points:\n{}".format(B_pred.T))
-        print("Raw errors, B-B_pred:\n{}".format((B-B_pred).T))
-        print("Residual (L2) for each:\n{}".format(l2_per_example.T))
-        print("loss on data: {}".format(frobenius_loss))
+    # Careful! Use raw_errors for the RF, but it will depend on pred-targ or targ-pred.
+    raw_errors = B_pred - B # Use pred-targ.
+    l2_per_example = np.sum((B-B_pred)*(B-B_pred), axis=0)
+    frobenius_loss = np.mean(l2_per_example)
 
-        print("End of debug prints.\n")
-    return RB_matrix
+    # Additional sanity checks. 
+    print("\nCamera points (input), A.T:\n{}".format(A.T))
+    print("Robot points (target), B.T:\n{}".format(B.T))
+    print("Predicted robot points:\n{}".format(B_pred.T))
+    print("Raw errors, B-B_pred:\n{}".format((B-B_pred).T))
+    print("Residual (L2) for each:\n{}".format(l2_per_example.T))
+    print("loss on data: {}".format(frobenius_loss))
+    print("End of debug prints for rigid transformation.\n")
+
+    # Now get that extra random forest. Actually we might have some liberty
+    # with the input/target. For now, I use input=camera_pts, targs=abs_residual.
+    X_train = camera_points_3d.T # (N,3)
+    Y_train = raw_errors # (3,N)
+    rf_residuals = estimate_rf(X_train, Y_train, debug)
+
+    return RB_matrix, rf_residuals
 
 
 def correspond_left_right_pixels(left, right, debug=True):
@@ -254,9 +306,10 @@ if __name__ == "__main__":
         robot_3d.append( (pos_l+pos_r) / 2. )
     robot_3d = np.array(robot_3d)
 
-    rigid_body_matrix = solve_rigid_transform(camera_points_3d=points_3d,
-                                              robot_points_3d=robot_3d,
-                                              debug=True)
+    rigid_body_matrix, residuals_mapping = solve_rigid_transform(
+            camera_points_3d=points_3d,
+            robot_points_3d=robot_3d,
+            debug=True)
 
     # Develop correspondence between left and right camera pixels. I assume in real
     # application, we'll only use the left camera at one time, but with this correspondence,
@@ -266,6 +319,7 @@ if __name__ == "__main__":
     # Save various matrices. I also need a guide to _using_ them.
     params = {}
     params['RB_matrix'] = rigid_body_matrix
+    params['rf_residuals'] = residuals_mapping
     params['theta_l2r'] = theta_l2r
     params['theta_r2l'] = theta_r2l
     pickle.dump(params, open('config/params_matrices.p', 'w'))
