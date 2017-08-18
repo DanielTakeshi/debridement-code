@@ -18,8 +18,8 @@ from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 # Double check these as needed. CHECK THE NUMBERS, i.e. v00, v01, etc.
-OUTVERSION   = '01' # for storing stuff
-VERSION      = '00' # for loading stuff
+OUTVERSION   = '02' # for _storing_ stuff
+VERSION      = '00' # for _loading_ stuff
 
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
 IMDIR        = 'images/check_regressors_v'+OUTVERSION+'/'
@@ -27,7 +27,7 @@ ESC_KEYS     = [27, 1048603]
 ARM1_ZOFFSET = 0.002  # Add 2mm to avoid repeatedly damaging the paper.
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
-USE_RF       = True
+USE_RF       = False
 MAX_NUM_ADD  = 36
 
 # Initialize the list of reference points 
@@ -99,25 +99,21 @@ def left_pixel_to_robot_prediction(left_pt, params):
     robot_pt = (params['RB_matrix']).dot(camera_pt)
 
     if USE_RF:
+        # UPDATE: do not use this. It's pretty bad and not what I should be doing.
         residuals = np.squeeze(
                 params['rf_residuals'].predict( [camera_pt[:3]] ) # Ignore the "1".
         )
         robot_pt = robot_pt - residuals
+
+    print("left_pt/right_pt:      {}".format(left_pt,right_pt))
+    print("camera_pt:             {}".format(camera_pt))
+    print("(predicted) robot_pt:  {}".format(robot_pt))
 
     # Finally, apply the z-offset. You didn't forget that, did you?
     target = [robot_pt[0], robot_pt[1], robot_pt[2] + ARM1_ZOFFSET]
     if target[2] < -0.18:
         print("Warning! Unsafe target: {}".format(target))
         sys.exit()
-
-    #print("left_pt:   {}".format(left_pt))
-    #print("right_pt:  {}".format(right_pt))
-    #print("camera_pt: {}".format(camera_pt))
-    #print("robot_pt:  {}".format(robot_pt))
-    #print("target:    {}".format(target))
-    #print("residuals: {}".format(residuals))
-    #sys.exit()
-
     return target
 
 

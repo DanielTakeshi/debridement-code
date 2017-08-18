@@ -117,19 +117,19 @@ def estimate_rf(X_train, Y_train, debug):
     has more error. But hopefully we can just lower it ... I hope. The idea is that given
     the camera point, the RF should "know" how to correct for the rigid body.
     """
-    assert X_train.shape[1] == Y_train.shape[1] == 3
+    assert X_train.shape[1] == Y_train.shape[1] == 3 # (N,3)
     rf = RandomForestRegressor(n_estimators=100)    
     rf.fit(X_train, Y_train)
     Y_pred = rf.predict(X_train)
-    avg_l2_train = np.sum((Y_pred-Y_train)*(Y_pred-Y_train), axis=1)
-    avg_l2 = np.mean(avg_l2_train)
+    abs_errors = np.abs(Y_pred-Y_train)
+    abs_mean_err = np.mean(abs_errors, axis=0)
 
     if debug:
         print("\nBegin debug prints for RFs:")
         print("X_train:\n{}".format(X_train))
         print("Y_train:\n{}".format(Y_train))
         print("Y_pred:\n{}".format(Y_pred))
-        print("avg(|| ytarg-ypred ||_2^2) = {:.6f}".format(avg_l2))
+        print("abs_mean_err: {}".format(abs_mean_err))
         print("End debug prints for RFs\n")
     return rf
 
@@ -298,6 +298,41 @@ def correspond_left_right_pixels(left, right, debug=True):
     return theta_l2r, theta_r2l
 
 
+def left_pixel_to_robot_prediction(left, params, true_points):
+    """ Similar to the method in `click_and_crop.py` except that we have a full list of
+    points from the left camera.
+    """
+    pred_points = []
+
+    for left_pt in left:
+        leftx, lefty = left_pt
+        left_pt_hom = np.array([leftx, lefty, 1.])
+        right_pt = left_pt_hom.dot(params['theta_l2r'])
+
+        # Copy the code I wrote to convert these pts to camera points.
+        disparity = np.linalg.norm(left_pt-right_pt)
+        stereoModel = image_geometry.StereoCameraModel()
+        stereoModel.fromCameraInfo(C_LEFT_INFO, C_RIGHT_INFO)
+        (xx,yy,zz) = stereoModel.projectPixelTo3d( (leftx,lefty), disparity )
+        camera_pt = np.array([xx, yy, zz])
+
+        # Now I can apply the rigid body and RF (if desired).
+        camera_pt = np.concatenate( (camera_pt, np.ones(1)) )
+        robot_pt = (params['RB_matrix']).dot(camera_pt)
+        target = [robot_pt[0], robot_pt[1], robot_pt[2]]
+        pred_points.append(target)
+
+    pred_points = np.array(pred_points)
+    abs_errors = np.abs(pred_points - true_points)
+    abs_mean_errors = np.mean(abs_errors, axis=0)
+    print("\nAssuming we ONLY have the left pixels, we still predict the robot points.")
+    print("pred points:\n{}".format(pred_points))
+    print("true points:\n{}".format(true_points))
+    print("mean abs err: {}".format(abs_mean_errors))
+    print("mean err: {}".format(np.mean(pred_points-true_points, axis=0)))
+    print("Done w/debugging.\n")
+
+
 if __name__ == "__main__":
     # Get the 3D **camera** points.
     assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
@@ -305,7 +340,7 @@ if __name__ == "__main__":
     debug_1(left, right, points_3d)
 
     # Solve rigid transform. Average out the robot points (they should be similar).
-    robot_3d = []
+    robot_3d = []  # Contains true values from my manual movement of the arm.
     for (pt1, pt2) in zip(LEFT_POINTS, RIGHT_POINTS):
         pos_l, _, _, _ = pt1
         pos_r, _, _, _ = pt2
@@ -331,3 +366,7 @@ if __name__ == "__main__":
     params['theta_l2r'] = theta_l2r
     params['theta_r2l'] = theta_r2l
     pickle.dump(params, open('config/mapping_results/params_matrices_v'+VERSION+'.p', 'w'))
+
+    # Let's see what happens if we pretend we ignore the right camera's pixels.
+    # Given the left camera's pixels, see if we can accurately predict robot frame.
+    left_pixel_to_robot_prediction(left, params, robot_3d)
