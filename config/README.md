@@ -7,6 +7,7 @@
 
 - Use `mapping_results` to save reslts from `mapping.py`, a VERY important script which does the full camera pixel to robot frame pipeline.
 
+- Use `calibration_results` to store stuff from `click_and_crop.py` for visualizing calibration errors in practice.
 
 
 # Older Stuff (don't look at it...)

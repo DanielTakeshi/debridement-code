@@ -15,22 +15,40 @@ import pickle
 import sys
 from autolab.data_collector import DataCollector
 from dvrk.robot import *
+np.set_printoptions(suppress=True)
 
 # Double check these as needed. CHECK THE NUMBERS, i.e. v00, v01, etc.
-VERSION      = '00'
+OUTVERSION   = '01' # for storing stuff
+VERSION      = '00' # for loading stuff
+
+OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
+IMDIR        = 'images/check_regressors_v'+OUTVERSION+'/'
 ESC_KEYS     = [27, 1048603]
 ARM1_ZOFFSET = 0.002  # Add 2mm to avoid repeatedly damaging the paper.
-ROTATION     = (0.0, 0.0, -160.0)
-OUTPUT_FILE  = 'config/calibration_results/data_v'+VERSION+'.p'
-IMDIR        = 'images/check_regressors_v'+VERSION+'/'
-USE_RF       = False
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
+USE_RF       = True
+MAX_NUM_ADD  = 36
 
 # Initialize the list of reference points 
 POINTS          = []
 CENTER_OF_BOXES = []
 
+# OK ... I'm going to have to figure out a better way to deal with rotation. For now
+# I will assume taking the average is close enough, but we should check. The issue is 
+# that the data from calibration shows systematic trends, e.g. increasing roll. One
+# option is to redo calibration, and after I push the end effector, force it to rotate.
+
+lll = pickle.load(open('config/calib_circlegrid_left_v'+VERSION+'_ONELIST.p', 'r'))
+rrr = pickle.load(open('config/calib_circlegrid_right_v'+VERSION+'_ONELIST.p', 'r'))
+rotations_l = [aa[1] for aa in lll]
+rotations_r = [aa[1] for aa in rrr]
+rotations_all = np.array(rotations_l + rotations_r)
+ROTATION = np.mean(rotations_all, axis=0)
+assert ROTATION.shape == (3,)
+print("ROTATION: {}".format(ROTATION))
+
+## NOW move on to methods ...
 
 def initializeRobots():
     d = DataCollector()
@@ -41,21 +59,21 @@ def initializeRobots():
 
 
 def storeData(filename, arm1):
-    """ Stores data by repeatedly appending data points to this file.
-    Then other code can simply enumerate over the whole thing.
+    """ Stores data by repeatedly appending data points to this file (not 
+    overriding). Then other code can simply enumerate over the whole thing.
     """
     f = open(filename, 'a')
     pickle.dump(arm1, f)
     f.close()
 
 
-def left_pixel_to_robot_prediction(camera_pt, params):
+def left_pixel_to_robot_prediction(left_pt, params):
     """ Given pixels from the left camera (cx,cy) representing camera point, 
     determine the corresponding (x,y,z) robot frame.
 
     Parameters
     ----------
-    camera_pt: [(int,int)]
+    left_pt: [(int,int)]
         A tuple of integers representing pixel values from the _left_ camera.
     params: [Dict]
         Dictionary of parameters from `mapping.py`.
@@ -65,26 +83,41 @@ def left_pixel_to_robot_prediction(camera_pt, params):
     A list of 3 elements representing the predicted robot frame. We WILL apply
     the z-offset here for safety reasons.
     """
-    leftx, lefty = camera_pt
+    leftx, lefty = left_pt
     left_pt_hom = np.array([leftx, lefty, 1.])
     right_pt = left_pt_hom.dot(params['theta_l2r'])
 
     # Copy the code I wrote to convert these pts to camera points.
-    disparity = np.linalg.norm(camera_pt-right_pt)
+    disparity = np.linalg.norm(left_pt-right_pt)
     stereoModel = image_geometry.StereoCameraModel()
     stereoModel.fromCameraInfo(C_LEFT_INFO, C_RIGHT_INFO)
     (xx,yy,zz) = stereoModel.projectPixelTo3d( (leftx,lefty), disparity )
     camera_pt = np.array([xx, yy, zz])
 
     # Now I can apply the rigid body and RF (if desired).
-    camera_pt = np.concatenate(camera_pt, np.zeros((1,1)))
+    camera_pt = np.concatenate( (camera_pt, np.ones(1)) )
     robot_pt = (params['RB_matrix']).dot(camera_pt)
+
     if USE_RF:
-        residuals = params['rf'].predict(camera_pt)
+        residuals = np.squeeze(
+                params['rf_residuals'].predict( [camera_pt[:3]] ) # Ignore the "1".
+        )
         robot_pt = robot_pt - residuals
 
     # Finally, apply the z-offset. You didn't forget that, did you?
     target = [robot_pt[0], robot_pt[1], robot_pt[2] + ARM1_ZOFFSET]
+    if target[2] < -0.18:
+        print("Warning! Unsafe target: {}".format(target))
+        sys.exit()
+
+    #print("left_pt:   {}".format(left_pt))
+    #print("right_pt:  {}".format(right_pt))
+    #print("camera_pt: {}".format(camera_pt))
+    #print("robot_pt:  {}".format(robot_pt))
+    #print("target:    {}".format(target))
+    #print("residuals: {}".format(residuals))
+    #sys.exit()
+
     return target
 
 
@@ -131,10 +164,19 @@ def click_and_crop(event, x, y, flags, param):
                    "(Press any key, or ESC If I made a mistake.)", updated_image_copy)
 
 
+def filter_point(x,y):
+    ignore = False
+    if (x < 500 or x > 1500 or y < 50 or y > 1000):
+        ignore = True
+    return ignore
+
+
 if __name__ == "__main__":
     arm, _, d = initializeRobots()
-    arm.close_gripper()
+    print("current arm position: {}".format(arm.get_current_cartesian_position()))
     arm.home()
+    arm.close_gripper()
+    print("current arm position: {}".format(arm.get_current_cartesian_position()))
     params = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION+'.p', 'r'))
 
     # Use the d.left_image for calibration. Originally I used a saved image, but it should
@@ -145,16 +187,21 @@ if __name__ == "__main__":
 
     # Iterate through valid contours from the _left_ camera (we'll simulate right camera).
     for i, (cX, cY, approx, peri) in enumerate(d.left_contours):  
+        if filter_point(cX,cY):
+            continue
+        if num_added == MAX_NUM_ADD:
+            break
+
         image = image_original.copy()
         cv2.circle(img=image, center=(cX,cY), radius=50, color=(0,0,255), thickness=1)
+        cv2.circle(img=image, center=(cX,cY), radius=4, color=(0,0,255), thickness=-1)
         cv2.drawContours(image=image, contours=[approx], contourIdx=-1, color=(0,255,0), thickness=3)
-        cv2.imshow("Press ESC if this isn't a desired contour (or a duplicate), "+
-                    "press any other key to proceed w/robot movement.", image)
+        cv2.imshow("Press ESC if this isn't a desired contour (or a duplicate), press any other key to proceed w/robot movement. Note that num_added = {}".format(num_added), image)
         firstkey = cv2.waitKey(0) 
 
         if firstkey not in ESC_KEYS:
             # First, determine where the robot will move to based on the pixels.
-            target = left_pixel_to_robot_prediction((cX,cY), params):
+            target = left_pixel_to_robot_prediction((cX,cY), params)
             pos = [target[0], target[1], target[2]]
             rot = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
@@ -175,8 +222,8 @@ if __name__ == "__main__":
                         thickness=2)
 
             # Now we apply the callback and drag a box around the end-effector on the (updated!) image.
-            window_name = "Robot has tried to move to ({},{}). Click and drag a box "
-                "around its end effector. Then press any key (or ESC if I made mistake).".format(cX,cY)
+            position = arm.get_current_cartesian_position()
+            window_name = "Robot has tried to move to ({},{}), position {}. Click and drag a box around its end effector. Then press any key (or ESC if I made mistake).".format(cX,cY,position)
             cv2.namedWindow(window_name)
             cv2.setMouseCallback(window_name, click_and_crop)
             cv2.imshow(window_name, updated_image_copy)

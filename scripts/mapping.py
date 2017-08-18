@@ -66,7 +66,7 @@ def get_points_3d(left_points, right_points, info):
         a = left_points[i]
         b = right_points[i]
         disparity = np.sqrt((a[0]-b[0]) ** 2 + (a[1]-b[1]) ** 2)
-        assert disparity == np.linalg.norm(a-b)
+        assert disparity == np.linalg.norm(np.array(a)-np.array(b))
         pt = convertStereo(a[0], a[1], disparity, info)
         points_3d.append(pt)
     return points_3d
@@ -117,6 +117,7 @@ def estimate_rf(X_train, Y_train, debug):
     has more error. But hopefully we can just lower it ... I hope. The idea is that given
     the camera point, the RF should "know" how to correct for the rigid body.
     """
+    assert X_train.shape[1] == Y_train.shape[1] == 3
     rf = RandomForestRegressor(n_estimators=100)    
     rf.fit(X_train, Y_train)
     Y_pred = rf.predict(X_train)
@@ -125,9 +126,9 @@ def estimate_rf(X_train, Y_train, debug):
 
     if debug:
         print("\nBegin debug prints for RFs:")
-        print("X_train.T:\n{}".format(X_train.T))
-        print("Y_train.T:\n{}".format(Y_train.T))
-        print("Y_pred.T:\n{}".format(Y_pred.T))
+        print("X_train:\n{}".format(X_train))
+        print("Y_train:\n{}".format(Y_train))
+        print("Y_pred:\n{}".format(Y_pred))
         print("avg(|| ytarg-ypred ||_2^2) = {:.6f}".format(avg_l2))
         print("End debug prints for RFs\n")
     return rf
@@ -186,7 +187,7 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     assert B_pred.shape == B.shape
 
     # Careful! Use raw_errors for the RF, but it will depend on pred-targ or targ-pred.
-    raw_errors = B_pred - B # Use pred-targ.
+    raw_errors = B_pred - B # Use pred-targ, of shape (3,N)
     l2_per_example = np.sum((B-B_pred)*(B-B_pred), axis=0)
     frobenius_loss = np.mean(l2_per_example)
 
@@ -195,29 +196,32 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     print("Robot points (target), B.T:\n{}".format(B.T))
     print("Predicted robot points:\n{}".format(B_pred.T))
     print("Raw errors, B-B_pred:\n{}".format((B-B_pred).T))
+    print("Mean abs error per dim: {}".format( (np.mean(np.abs(B-B_pred), axis=1))) )
     print("Residual (L2) for each:\n{}".format(l2_per_example.T))
     print("loss on data: {}".format(frobenius_loss))
     print("End of debug prints for rigid transformation.\n")
 
     # Now get that extra random forest. Actually we might have some liberty
     # with the input/target. For now, I use input=camera_pts, targs=abs_residual.
-    X_train = camera_points_3d.T # (N,3)
-    Y_train = raw_errors # (3,N)
+    X_train = camera_points_3d # (N,3)
+    Y_train = raw_errors.T # (N,3)
     rf_residuals = estimate_rf(X_train, Y_train, debug)
 
     # NOW, finally, let's combine the two! Recall that A, Ah are our camera data.
-    errors = rf_residuals.predict(X_train)
-    assert errors.shape == B_pred.shape
-    B_preds_with_rf = B_pred - errors
-    new_raw_errors = B_preds_with_rf - B # Again, pred-targ.
+    errors = rf_residuals.predict(X_train) # (N,3)
+    assert errors.shape[1] == B_pred.shape[0] == 3
+    assert (errors.T).shape == B_pred.shape
+    B_preds_with_rf = B_pred - errors.T # (3,N)
+    new_raw_errors = B_preds_with_rf - B # (3,N)
     avg_abs_error_old = np.mean(np.abs(raw_errors))
     avg_abs_error_new = np.mean(np.abs(new_raw_errors))
 
     print("\nWhat if we COMBINE the rigid body with the RF?:")
-    print("Our predictions, B_pred-errors (so Rigid+RF):\n{}".format(B_preds_with_rf.T))
+    print("Predictions, B_pred-errors transposed (Rigid+RF):\n{}".format(B_preds_with_rf.T))
     print("NEW raw errors:\n{}".format(new_raw_errors.T))
     print("avg abs err for RB:    {}".format(avg_abs_error_old))
     print("avg abs err for RB+RF: {}".format(avg_abs_error_new))
+    print("Mean abs error per dim: {}".format( np.mean(np.abs(new_raw_errors), axis=1) ))
     print("End of debug prints for rigid transform PLUS RF...\n")
 
     return RB_matrix, rf_residuals
