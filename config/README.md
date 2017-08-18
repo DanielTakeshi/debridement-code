@@ -2,7 +2,10 @@
 
 
 - `calib_circlegrid_left_v00_ONELIST.p` and the one for `right` contain ONE LIST with all the data needed. They are of length 36.
+
 - The `backup` directory has the original pickle files where we have to load one by one. I had to make the lists since I mistakenly double counted one of the circles (but I knew which one, don't worry...) and manually removed it. The point is, it's easier to load it in with one list, so I changed it to do that!
+
+- Use `mapping_results` to save reslts from `mapping.py`, a VERY important script which does the full camera pixel to robot frame pipeline.
 
 
 

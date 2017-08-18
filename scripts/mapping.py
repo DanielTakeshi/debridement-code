@@ -1,5 +1,5 @@
 """
-Does the entire mapping pipeline.
+Does the entire mapping pipeline. Saves stuff in ONE dictionary w/parameters.
 """
 
 from dvrk.robot import *
@@ -14,23 +14,14 @@ import sys
 import time
 np.set_printoptions(suppress=True)
 
-
-# DOUBLE CHECK ALL THESE!!
+# DOUBLE CHECK ALL THESE!! Especially the version number!
+VERSION      = '00'
 LEFT_POINTS  = pickle.load(open('config/calib_circlegrid_left_v00_ONELIST.p',  'r'))
 RIGHT_POINTS = pickle.load(open('config/calib_circlegrid_right_v00_ONELIST.p', 'r'))
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
 NUM_POINTS   = len(LEFT_POINTS)
-
 ESC_KEYS     = [27, 1048603]
-
-
-def initializeRobots():
-    d = DataCollector()
-    r1 = robot("PSM1") # left (but my right)
-    r2 = robot("PSM2") # right (but my left)
-    time.sleep(2)
-    return (r1,r2,d)
 
 
 def debug_1(left, right, points3d):
@@ -288,10 +279,7 @@ def correspond_left_right_pixels(left, right, debug=True):
 
 
 if __name__ == "__main__":
-    #arm1, _, d = initializeRobots()
-    #arm1.close_gripper()
-
-    # Get the 3D **camera** points. Given two 
+    # Get the 3D **camera** points.
     assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
     left, right, points_3d = pixels_to_3d()
     debug_1(left, right, points_3d)
@@ -322,4 +310,4 @@ if __name__ == "__main__":
     params['rf_residuals'] = residuals_mapping
     params['theta_l2r'] = theta_l2r
     params['theta_r2l'] = theta_r2l
-    pickle.dump(params, open('config/params_matrices.p', 'w'))
+    pickle.dump(params, open('config/mapping_results/params_matrices_v'+VERSION+'.p', 'w'))
