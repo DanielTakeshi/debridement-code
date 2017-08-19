@@ -1,10 +1,8 @@
 """ 
-Because I need to detect mouse clicks so that I can find and visualize where the rigid body
-and random forests are going wrong. AFTER calibration, I will send the robot end effector to 
-many points. Then, once it goes to each point, this code will stop, show an _image_ of the 
-target point and the actual robot points. Then I'll drag a box around where the end-effector 
-is, and then the code should automatically record stuff. Be careful to record the right stuff,
-so it's manual but I'm usually good with this.
+AFTER we train the rigid body, this will go through the points and apply the predictor.
+I'll get systematic errors (if things were working well) so I will MANUALLY adjust the
+robot motion. Then train a random forest predictor on that. THEN do again the click-and-crop
+thingy that I've been doing.
 """
 
 import cv2
@@ -18,21 +16,15 @@ from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 # Double check these as needed. CHECK THE NUMBERS, i.e. v00, v01, etc.
-OUTVERSION   = '99' # for _storing_ stuff, use 99 for debugging
+OUTVERSION   = '00' # for _storing_ stuff, use 99 for debugging
 VERSION      = '00' # for _loading_ stuff
 
-OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
-IMDIR        = 'images/check_regressors_v'+OUTVERSION+'/'
+OUTPUT_FILE  = 'config/calibration_results/data_for_rf_v'+OUTVERSION+'.p'
 ESC_KEYS     = [27, 1048603]
-ARM1_ZOFFSET = 0.002  # Add 2mm to avoid repeatedly damaging the paper.
+ARM1_ZOFFSET = 0.000  # Add 1mm to avoid repeatedly damaging the paper.
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
-USE_RF       = False
 MAX_NUM_ADD  = 36
-
-# Initialize the list of reference points 
-POINTS          = []
-CENTER_OF_BOXES = []
 
 # OK ... I'm going to have to figure out a better way to deal with rotation. For now
 # I will assume taking the average is close enough, but we should check. The issue is 
@@ -98,66 +90,12 @@ def left_pixel_to_robot_prediction(left_pt, params):
     camera_pt = np.concatenate( (camera_pt, np.ones(1)) )
     robot_pt = (params['RB_matrix']).dot(camera_pt)
 
-    if USE_RF:
-        # UPDATE: do not use this. It's pretty bad and not what I should be doing.
-        residuals = np.squeeze(
-                params['rf_residuals'].predict( [camera_pt[:3]] ) # Ignore the "1".
-        )
-        robot_pt = robot_pt - residuals
-
-    print("\tleft_pt/right_pt:      {},{}".format(left_pt,right_pt))
-    print("\tcamera_pt:             {}".format(camera_pt))
-    print("\t(predicted) robot_pt:  {}".format(robot_pt))
-
     # Finally, apply the z-offset. You didn't forget that, did you?
     target = [robot_pt[0], robot_pt[1], robot_pt[2] + ARM1_ZOFFSET]
     if target[2] < -0.18:
         print("Warning! Unsafe target: {}".format(target))
         sys.exit()
     return target
-
-
-def click_and_crop(event, x, y, flags, param):
-    global POINTS, CENTER_OF_BOXES
-             
-    # If left mouse button clicked, record the starting (x,y) coordinates 
-    # and indicate that cropping is being performed
-    if event == cv2.EVENT_LBUTTONDOWN:
-        POINTS.append((x,y))
-                                                 
-    # Check to see if the left mouse button was released
-    elif event == cv2.EVENT_LBUTTONUP:
-        # Record ending (x,y) coordinates and indicate that cropping is finished AND save center!
-        POINTS.append((x,y))
-
-        upper_left = POINTS[-2]
-        lower_right = POINTS[-1]
-        assert upper_left[0] < lower_right[0]
-        assert upper_left[1] < lower_right[1]
-        center_x = int(upper_left[0] + (lower_right[0]-upper_left[0])/2)
-        center_y = int(upper_left[1] + (lower_right[1]-upper_left[1])/2)
-        CENTER_OF_BOXES.append( (center_x,center_y) )
-        
-        # Draw a rectangle around the region of interest, w/center point. Blue=Before, Red=AfteR.
-        cv2.rectangle(img=updated_image_copy, 
-                      pt1=POINTS[-2], 
-                      pt2=POINTS[-1], 
-                      color=(0,0,255), 
-                      thickness=2)
-        cv2.circle(img=updated_image_copy, 
-                   center=CENTER_OF_BOXES[-1], 
-                   radius=6, 
-                   color=(0,0,255), 
-                   thickness=-1)
-        cv2.putText(img=updated_image_copy, 
-                    text="{}".format(CENTER_OF_BOXES[-1]), 
-                    org=CENTER_OF_BOXES[-1],  
-                    fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
-                    fontScale=1, 
-                    color=(0,0,255), 
-                    thickness=2)
-        cv2.imshow("This is in the click and crop method AFTER the rectangle. "+
-                   "(Press any key, or ESC If I made a mistake.)", updated_image_copy)
 
 
 def filter_point(x,y):
@@ -173,10 +111,11 @@ if __name__ == "__main__":
     arm.home()
     arm.close_gripper()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
+
+    # I will be IGNORING the random forest here, because it doesn't really work.
     params = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION+'.p', 'r'))
 
-    # Use the d.left_image for calibration. Originally I used a saved image, but it should
-    # be determined here since the paper location and camera might adjust slightly.
+    # Use the d.left_image for calibration.
     cv2.imwrite("images/left_image.jpg", d.left_image)
     image_original = cv2.imread("images/left_image.jpg")
     num_added = 0
@@ -201,56 +140,33 @@ if __name__ == "__main__":
             pos = [target[0], target[1], target[2]]
             rot = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
-            # Robot moves to that point and will likely be off. 
-            # I think 6 seconds is enough for the camera to refresh.
+            # Robot moves to that point and THEN lowers itself. Will likely be off. 
+            # I think 6 seconds is enough for the camera to refresh. But save the frame!
             arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
-            time.sleep(6)
 
-            # Update image and put center coordinate there. Blue=Before, Red=AfteR.
+            # Eh I decided not to do this. The z-axis is already quite accurate anyway.
+            #lowered_pos = [pos[0], pos[1], pos[2] - ARM1_ZOFFSET]
+            #arm.move_cartesian_frame_linear_interpolation(tfx.pose(lowered_pos, rot), 0.01)
+            time.sleep(5)
+            predicted_pos = arm.get_current_cartesian_position()
+
+            # IMPORTANT! Now I do some human motion!!
             updated_image_copy = (d.left_image).copy()
-            cv2.circle(img=updated_image_copy, center=(cX,cY), radius=6, color=(255,0,0), thickness=-1)
-            cv2.putText(img=updated_image_copy, 
-                        text="{}".format((cX,cY)), 
-                        org=(cX,cY), 
-                        fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
-                        fontScale=1, 
-                        color=(255,0,0), 
-                        thickness=2)
-
-            # Now we apply the callback and drag a box around the end-effector on the (updated!) image.
-            position = arm.get_current_cartesian_position()
-            window_name = "Robot has tried to move to ({},{}), position {}. Click and drag a box around its end effector. Then press any key (or ESC if I made mistake).".format(cX,cY,position)
-            cv2.namedWindow(window_name)
-            cv2.setMouseCallback(window_name, click_and_crop)
+            window_name = "Tried to move to ({},{}), position {}. ADJUST IT AS NEEDED then press any key other than ESC! Or ESC if I made a mistake and need to skip this".format(cX,cY,predicted_pos)
             cv2.imshow(window_name, updated_image_copy)
             key = cv2.waitKey(0)
             if key in ESC_KEYS:
                 continue
-
-            # Now save the image with the next available index. It will contain the contours.
-            index = len(os.listdir(IMDIR))
-            cv2.imwrite(IMDIR+"/point_"+str(index).zfill(2)+".png", updated_image_copy)
             cv2.destroyAllWindows()
- 
-            # Get position and orientation of the arm, save (in a dictionary), & reset. 
-            # I.e. the target_pos is what the random forest predicted for the target position.
-            frame = arm.get_current_cartesian_position()
-            new_pos = tuple(frame.position[:3])
-            new_rot = tfx.tb_angles(frame.rotation)
-            new_rot = (new_rot.yaw_deg, new_rot.pitch_deg, new_rot.roll_deg)
-            data_pt = {'target_pos': pos,
-                       'target_rot': ROTATION,
-                       'actual_pos': new_pos,
-                       'actual_rot': new_rot,
-                       'center_target_pixels': (cX,cY),
-                       'center_actual_pixels': CENTER_OF_BOXES[-1]}
+
+            # Now record the new position of the arm, and save it.
+            new_pos = arm.get_current_cartesian_position()
+            data_pt = {'predicted_pos': predicted_pos, 'new_pos': new_pos}
             storeData(OUTPUT_FILE, data_pt)
 
             # Some stats for debugging, etc.
             num_added += 1
             print("contour {}, data_pt: {} (# added: {})".format(i, data_pt, num_added))
-            assert (2*num_added) == (2*len(CENTER_OF_BOXES)) == len(POINTS)
-
         else:
             print("(not storing contour {})".format(i))
 

@@ -239,8 +239,8 @@ def correspond_left_right_pixels(left, right, debug=True):
     Input: `left` and `right` are lists of (corresponding) tuples representing pixel values.
     """
     N = len(left)
-    A = np.concatenate( (np.array(left),  np.ones((N,1))) , axis=1) # Left
-    B = np.concatenate( (np.array(right), np.ones((N,1))) , axis=1) # Right
+    A = np.concatenate( (np.array(left),  np.ones((N,1))) , axis=1) # Left pixels
+    B = np.concatenate( (np.array(right), np.ones((N,1))) , axis=1) # Right pixels
     A_nobias = np.array(left)
     B_nobias = np.array(right)
 
@@ -287,8 +287,8 @@ def correspond_left_right_pixels(left, right, debug=True):
 
         # Now back to traditional debugs.
         print("\nBegin debug prints:")
-        print("A.shape: {}, and A:\n{}".format(A.shape, A))
-        print("B.shape: {}, and B:\n{}".format(B.shape, B))
+        print("(left pixels) A.shape: {}, and A:\n{}".format(A.shape, A))
+        print("(right pixels) B.shape: {}, and B:\n{}".format(B.shape, B))
         print("theta for LEFT to RIGHT:\n{}".format(theta_l2r))
         print("theta for RIGHT to LEFT:\n{}".format(theta_r2l))
         print("abs_errors l2r (remember, these are pixels):\n{}".format(abs_error_l2r))
@@ -323,13 +323,15 @@ def left_pixel_to_robot_prediction(left, params, true_points):
         pred_points.append(target)
 
     pred_points = np.array(pred_points)
-    abs_errors = np.abs(pred_points - true_points)
-    abs_mean_errors = np.mean(abs_errors, axis=0)
+
     print("\nAssuming we ONLY have the left pixels, we still predict the robot points.")
     print("pred points:\n{}".format(pred_points))
-    print("true points:\n{}".format(true_points))
-    print("mean abs err: {}".format(abs_mean_errors))
-    print("mean err: {}".format(np.mean(pred_points-true_points, axis=0)))
+    if true_points is not None:
+        abs_errors = np.abs(pred_points - true_points)
+        abs_mean_errors = np.mean(abs_errors, axis=0)
+        print("true points:\n{}".format(true_points))
+        print("mean abs err: {}".format(abs_mean_errors))
+        print("mean err: {}".format(np.mean(pred_points-true_points, axis=0)))
     print("Done w/debugging.\n")
 
 
@@ -340,13 +342,13 @@ if __name__ == "__main__":
     debug_1(left, right, points_3d)
 
     # Solve rigid transform. Average out the robot points (they should be similar).
-    robot_3d = []  # Contains true values from my manual movement of the arm.
+    robot_3d = []  # Contains *averaged* true values from my manual movement of the arm.
     for (pt1, pt2) in zip(LEFT_POINTS, RIGHT_POINTS):
         pos_l, _, _, _ = pt1
         pos_r, _, _, _ = pt2
         pos_l = np.squeeze(np.array(pos_l))
         pos_r = np.squeeze(np.array(pos_r))
-        robot_3d.append( (pos_l+pos_r) / 2. )
+        robot_3d.append( (pos_l+pos_r) / 2. ) # We have two measurements per point.
     robot_3d = np.array(robot_3d)
 
     rigid_body_matrix, residuals_mapping = solve_rigid_transform(
@@ -370,3 +372,11 @@ if __name__ == "__main__":
     # Let's see what happens if we pretend we ignore the right camera's pixels.
     # Given the left camera's pixels, see if we can accurately predict robot frame.
     left_pixel_to_robot_prediction(left, params, robot_3d)
+
+    # More debugging.
+    new_left = [
+            (795, 135),
+            (795, 100),
+            (803, 119)
+    ]
+    left_pixel_to_robot_prediction(new_left, params, None)

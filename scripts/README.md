@@ -3,6 +3,9 @@
 - Very important: `mapping.py` develops mappings between pixels to robot/camera stuff. 
 
   - Then, `click_and_crop.py` will test if the stuff in `mapping.py` worked, basically the manual thing where I check if it goes to the right spot, and `collect_together.py` will put it in one image for me.
+  - Also, `train_rf.py` should ideally make the full pipeline work by training the RF on my actual data. So I apply the rigid body transformation, then I will train the random forest residual predictor there.
+
+  TODO: update `click_and_crop.py` with this new scenario. Or better yet, get an entirely new script (since I might want to benchmark with that old version).
 
 - Calibration: `calibrate_onearm.py` is when I do my manual stuff with the DVRK's arms, then:
 

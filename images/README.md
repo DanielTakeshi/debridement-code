@@ -13,3 +13,4 @@ This is for calibration. Versions 0 and 1 are a bit awry because I forgot to del
 
 - Version 0: rigid body only.
 - Version 1: rigid body w/RF trained with it, but not so good.
+- Version 99: for debugging.

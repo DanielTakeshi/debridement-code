@@ -7,7 +7,13 @@
 
 - Use `mapping_results` to save reslts from `mapping.py`, a VERY important script which does the full camera pixel to robot frame pipeline.
 
-- Use `calibration_results` to store stuff from `click_and_crop.py` for visualizing calibration errors in practice.
+- Use `calibration_results` to store stuff from `click_and_crop.py` for visualizing calibration errors in practice. UPDATE: `data_vXY.p` will be for that click and crop, but `data_for_rf_vXY.p` is going to be where I put the human data from `train_rf.py` Don't get confused!.
+
+
+
+
+
+
 
 
 # Older Stuff (don't look at it...)
