@@ -28,10 +28,10 @@ np.set_printoptions(suppress=True)
 ###########################
 
 VERSION_INPUT  = '00'
-VERSION_OUTPUT = '01' # See README in images directory for details
+VERSION_OUTPUT = '02' # See README in images directory for details
 ESC_KEYS       = [27, 1048603]
 TOPK_CONTOURS  = 8 # Maybe not worry about getting *exactly* the same ...
-CLOSE_ANGLE    = 25
+CLOSE_ANGLE    = 10 # I think 25 is good for pumpkin, 10 for sunflower.
 ROTATION       = utilities.get_average_rotation(VERSION_INPUT)
 TFX_ROTATION   = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
@@ -45,7 +45,7 @@ IMAGE_DIR = 'images/seeds_v'+VERSION_OUTPUT
 # Offsets, some heuristic (e.g. x-coord), some (e.g. the z-coord) for safety.
 ARM1_XOFFSET = -0.0005
 ARM1_YOFFSET = 0.000
-ARM1_ZOFFSET = -0.002
+ARM1_ZOFFSET = -0.0015
 ZOFFSET_SAFETY = 0.003 # What I actually use in practice
 
 ##########################
