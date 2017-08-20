@@ -28,10 +28,10 @@ np.set_printoptions(suppress=True)
 ###########################
 
 VERSION_INPUT  = '00'
-VERSION_OUTPUT = '00'
+VERSION_OUTPUT = '01' # See README in images directory for details
 ESC_KEYS       = [27, 1048603]
-TOPK_CONTOURS  = 8 
-CLOSE_ANGLE    = 10
+TOPK_CONTOURS  = 8 # Maybe not worry about getting *exactly* the same ...
+CLOSE_ANGLE    = 25
 ROTATION       = utilities.get_average_rotation(VERSION_INPUT)
 TFX_ROTATION   = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 

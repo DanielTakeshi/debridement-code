@@ -19,3 +19,6 @@ For images after my UAI trip. Note that some of the images that were used to che
 ## Seeds
 
 These are for saving the initial images from the open loop stuff, since I want to argue that any errors we have will be because of perception problems, not calibration.
+
+- Version 00: for sunflower seeds, horizontal orientation, with 8 seeds (I had to fiddle a lot due to using the raw tissue phantom as the background.
+- Version 01: for pumpkin seeds, horizontal orientation, with 8 seeds. Fortunately, due to the white background, it's easy to detect.
