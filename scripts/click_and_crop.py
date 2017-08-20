@@ -2,6 +2,7 @@
 UPDATE August 19, 2017: 
 
     DO NOT USE THIS! It's deprecated. Use `click_and_crop_v2.py`.
+    The script here also hasn't been adjusted to use the `utilities.py` API.
 
 Because I need to detect mouse clicks so that I can find and visualize where the rigid body
 and random forests are going wrong. AFTER calibration, I will send the robot end effector to 

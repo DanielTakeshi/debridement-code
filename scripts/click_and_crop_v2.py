@@ -7,6 +7,8 @@ is, and then the code should automatically record stuff. Be careful to record th
 so it's manual but I'm usually good with this.
 
 UPDATE: second version, with the better random forest.  :-)
+
+UPDATE: haven't tested with the new `utilities` API but I _think_ it should be OK.
 """
 
 import cv2
@@ -15,21 +17,21 @@ import numpy as np
 import os
 import pickle
 import sys
+import utilities
 from autolab.data_collector import DataCollector
 from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 # Double check these as needed. CHECK THE NUMBERS, i.e. v00, v01, etc.
-OUTVERSION   = '04' # for _storing_ stuff, use 99 for debugging
+OUTVERSION   = '99' # for _storing_ stuff, use 99 for debugging
 VERSION      = '00' # for _loading_ stuff
 
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
 IMDIR        = 'images/check_regressors_v'+OUTVERSION+'/'
 ESC_KEYS     = [27, 1048603]
-C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
-C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
 USE_RF       = True
 MAX_NUM_ADD  = 36
+ROTATION     = utilities.get_average_rotation(VERSION)
 
 # Offsets, some heuristic, some (e.g. the z-coordinate) to avoid damaging the surface.
 ARM1_XOFFSET = -0.001
@@ -40,89 +42,9 @@ ARM1_ZOFFSET = 0.000
 POINTS          = []
 CENTER_OF_BOXES = []
 
-# OK ... I'm going to have to figure out a better way to deal with rotation. For now
-# I will assume taking the average is close enough, but we should check. The issue is 
-# that the data from calibration shows systematic trends, e.g. increasing roll. One
-# option is to redo calibration, and after I push the end effector, force it to rotate.
-
-lll = pickle.load(open('config/calib_circlegrid_left_v'+VERSION+'_ONELIST.p', 'r'))
-rrr = pickle.load(open('config/calib_circlegrid_right_v'+VERSION+'_ONELIST.p', 'r'))
-rotations_l = [aa[1] for aa in lll]
-rotations_r = [aa[1] for aa in rrr]
-rotations_all = np.array(rotations_l + rotations_r)
-ROTATION = np.mean(rotations_all, axis=0)
-assert ROTATION.shape == (3,)
-print("ROTATION: {}".format(ROTATION))
-
-## NOW move on to methods ...
-
-def initializeRobots():
-    d = DataCollector()
-    r1 = robot("PSM1") # left (but my right)
-    r2 = robot("PSM2") # right (but my left)
-    time.sleep(2)
-    return (r1,r2,d)
-
-
-def storeData(filename, arm1):
-    """ Stores data by repeatedly appending data points to this file (not 
-    overriding). Then other code can simply enumerate over the whole thing.
-    """
-    f = open(filename, 'a')
-    pickle.dump(arm1, f)
-    f.close()
-
-
-def left_pixel_to_robot_prediction(left_pt, params, better_rf):
-    """ Given pixels from the left camera (cx,cy) representing camera point, 
-    determine the corresponding (x,y,z) robot frame.
-
-    Parameters
-    ----------
-    left_pt: [(int,int)]
-        A tuple of integers representing pixel values from the _left_ camera.
-    params: [Dict]
-        Dictionary of parameters from `mapping.py`.
-    better_rf: [Random Forest]
-        Used for the random forest. Ignore anything R.F.-related in `params`!
-
-    Returns
-    -------
-    A list of 3 elements representing the predicted robot frame. We WILL apply
-    the z-offset here for safety reasons.
-    """
-    leftx, lefty = left_pt
-    left_pt_hom = np.array([leftx, lefty, 1.])
-    right_pt = left_pt_hom.dot(params['theta_l2r'])
-
-    # Copy the code I wrote to convert these pts to camera points.
-    disparity = np.linalg.norm(left_pt-right_pt)
-    stereoModel = image_geometry.StereoCameraModel()
-    stereoModel.fromCameraInfo(C_LEFT_INFO, C_RIGHT_INFO)
-    (xx,yy,zz) = stereoModel.projectPixelTo3d( (leftx,lefty), disparity )
-    camera_pt = np.array([xx, yy, zz])
-
-    # Now I can apply the rigid body and RF (if desired).
-    camera_pt = np.concatenate( (camera_pt, np.ones(1)) )
-    robot_pt = (params['RB_matrix']).dot(camera_pt)
-
-    if USE_RF:
-        residuals = np.squeeze( better_rf.predict([camera_pt[:3]]) )
-        assert len(residuals) == 2
-        residuals = np.concatenate((residuals,np.zeros(1))) # Add zero for z-coord.
-        robot_pt = robot_pt - residuals
-        print("\tresiduals:             {}".format(residuals))
-
-    print("\tleft_pt/right_pt:      {},{}".format(left_pt,right_pt))
-    print("\tcamera_pt:             {}".format(camera_pt))
-    print("\t(predicted) robot_pt:  {}".format(robot_pt))
-
-    # Finally, apply the offsets. You didn't forget that, did you?
-    target = [robot_pt[0]+ARM1_XOFFSET, robot_pt[1]+ARM1_YOFFSET, robot_pt[2]+ARM1_ZOFFSET]
-    if target[2] < -0.18:
-        print("Warning! Unsafe target: {}".format(target))
-        sys.exit()
-    return target
+##########################
+# END OF `CONFIGURATION` #
+##########################
 
 
 def click_and_crop(event, x, y, flags, param):
@@ -168,15 +90,8 @@ def click_and_crop(event, x, y, flags, param):
                    "(Press any key, or ESC If I made a mistake.)", updated_image_copy)
 
 
-def filter_point(x,y):
-    ignore = False
-    if (x < 500 or x > 1500 or y < 50 or y > 1000):
-        ignore = True
-    return ignore
-
-
 if __name__ == "__main__":
-    arm, _, d = initializeRobots()
+    arm, _, d = utilities.initializeRobots()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
     arm.home()
     arm.close_gripper()
@@ -194,7 +109,7 @@ if __name__ == "__main__":
 
     # Iterate through valid contours from the _left_ camera (we'll simulate right camera).
     for i, (cX, cY, approx, peri) in enumerate(d.left_contours):  
-        if filter_point(cX,cY):
+        if utilities.filter_point(cX,cY, xlower=500, xupper=1500, ylower=50, yupper=1000):
             continue
         if num_added == MAX_NUM_ADD:
             break
@@ -208,7 +123,14 @@ if __name__ == "__main__":
 
         if firstkey not in ESC_KEYS:
             # First, determine where the robot will move to based on the pixels.
-            target = left_pixel_to_robot_prediction((cX,cY), params, better_rf)
+            target = utilities.left_pixel_to_robot_prediction(
+                    left_pt=(cX,cY), 
+                    params=params, 
+                    better_rf=better_rf,
+                    ARM1_XOFFSET=ARM1_XOFFSET,
+                    ARM1_YOFFSET=ARM1_YOFFSET,
+                    ARM1_ZOFFSET=ARM1_ZOFFSET,
+                    USE_RF=USE_RF)
             pos = [target[0], target[1], target[2]]
             rot = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
@@ -255,7 +177,7 @@ if __name__ == "__main__":
                        'actual_rot': new_rot,
                        'center_target_pixels': (cX,cY),
                        'center_actual_pixels': CENTER_OF_BOXES[-1]}
-            storeData(OUTPUT_FILE, data_pt)
+            utilities.storeData(OUTPUT_FILE, data_pt)
 
             # Some stats for debugging, etc.
             num_added += 1

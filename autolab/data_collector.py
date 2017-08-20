@@ -42,14 +42,8 @@ class DataCollector:
         self.right_image_circles = None
 
         # To get a bounding box of points, to filter away any nonsense.
-        #### For the square material.
-        ###self.lx, self.ly, self.lw, self.lh = 350, 200, 750, 700        
-        ###self.rx, self.ry, self.rw, self.rh = 300, 200, 700, 700        
-        #### For the rectangular material.
-        ###self.lx, self.ly, self.lw, self.lh = 400, 300, 850, 350        
-        ###self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
-        # For both (flat vs barrier) of the two tissue phantoms that Steve gave me.
-        self.lx, self.ly, self.lw, self.lh = 550, 250, 725, 700        
+        # For the initial open loop policy for the tissues that Steve gave me.
+        self.lx, self.ly, self.lw, self.lh = 700, 80, 700, 700        
         self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
