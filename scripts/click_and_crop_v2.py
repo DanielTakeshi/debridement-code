@@ -1,14 +1,12 @@
 """ 
-UPDATE August 19, 2017: 
-
-    DO NOT USE THIS! It's deprecated. Use `click_and_crop_v2.py`.
-
 Because I need to detect mouse clicks so that I can find and visualize where the rigid body
 and random forests are going wrong. AFTER calibration, I will send the robot end effector to 
 many points. Then, once it goes to each point, this code will stop, show an _image_ of the 
 target point and the actual robot points. Then I'll drag a box around where the end-effector 
 is, and then the code should automatically record stuff. Be careful to record the right stuff,
 so it's manual but I'm usually good with this.
+
+UPDATE: second version, with the better random forest.  :-)
 """
 
 import cv2
@@ -22,17 +20,21 @@ from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 # Double check these as needed. CHECK THE NUMBERS, i.e. v00, v01, etc.
-OUTVERSION   = '99' # for _storing_ stuff, use 99 for debugging
+OUTVERSION   = '04' # for _storing_ stuff, use 99 for debugging
 VERSION      = '00' # for _loading_ stuff
 
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
 IMDIR        = 'images/check_regressors_v'+OUTVERSION+'/'
 ESC_KEYS     = [27, 1048603]
-ARM1_ZOFFSET = 0.002  # Add 2mm to avoid repeatedly damaging the paper.
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
-USE_RF       = False
+USE_RF       = True
 MAX_NUM_ADD  = 36
+
+# Offsets, some heuristic, some (e.g. the z-coordinate) to avoid damaging the surface.
+ARM1_XOFFSET = -0.001
+ARM1_YOFFSET = 0.000
+ARM1_ZOFFSET = 0.000
 
 # Initialize the list of reference points 
 POINTS          = []
@@ -71,7 +73,7 @@ def storeData(filename, arm1):
     f.close()
 
 
-def left_pixel_to_robot_prediction(left_pt, params):
+def left_pixel_to_robot_prediction(left_pt, params, better_rf):
     """ Given pixels from the left camera (cx,cy) representing camera point, 
     determine the corresponding (x,y,z) robot frame.
 
@@ -81,6 +83,8 @@ def left_pixel_to_robot_prediction(left_pt, params):
         A tuple of integers representing pixel values from the _left_ camera.
     params: [Dict]
         Dictionary of parameters from `mapping.py`.
+    better_rf: [Random Forest]
+        Used for the random forest. Ignore anything R.F.-related in `params`!
 
     Returns
     -------
@@ -103,18 +107,18 @@ def left_pixel_to_robot_prediction(left_pt, params):
     robot_pt = (params['RB_matrix']).dot(camera_pt)
 
     if USE_RF:
-        # UPDATE: do not use this. It's pretty bad and not what I should be doing.
-        residuals = np.squeeze(
-                params['rf_residuals'].predict( [camera_pt[:3]] ) # Ignore the "1".
-        )
+        residuals = np.squeeze( better_rf.predict([camera_pt[:3]]) )
+        assert len(residuals) == 2
+        residuals = np.concatenate((residuals,np.zeros(1))) # Add zero for z-coord.
         robot_pt = robot_pt - residuals
+        print("\tresiduals:             {}".format(residuals))
 
     print("\tleft_pt/right_pt:      {},{}".format(left_pt,right_pt))
     print("\tcamera_pt:             {}".format(camera_pt))
     print("\t(predicted) robot_pt:  {}".format(robot_pt))
 
-    # Finally, apply the z-offset. You didn't forget that, did you?
-    target = [robot_pt[0], robot_pt[1], robot_pt[2] + ARM1_ZOFFSET]
+    # Finally, apply the offsets. You didn't forget that, did you?
+    target = [robot_pt[0]+ARM1_XOFFSET, robot_pt[1]+ARM1_YOFFSET, robot_pt[2]+ARM1_ZOFFSET]
     if target[2] < -0.18:
         print("Warning! Unsafe target: {}".format(target))
         sys.exit()
@@ -177,7 +181,10 @@ if __name__ == "__main__":
     arm.home()
     arm.close_gripper()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
+
+    # Do NOT use params[random_forest] but instead use `better_rf`.
     params = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION+'.p', 'r'))
+    better_rf = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION+'.p', 'r'))
 
     # Use the d.left_image for calibration. Originally I used a saved image, but it should
     # be determined here since the paper location and camera might adjust slightly.
@@ -201,7 +208,7 @@ if __name__ == "__main__":
 
         if firstkey not in ESC_KEYS:
             # First, determine where the robot will move to based on the pixels.
-            target = left_pixel_to_robot_prediction((cX,cY), params)
+            target = left_pixel_to_robot_prediction((cX,cY), params, better_rf)
             pos = [target[0], target[1], target[2]]
             rot = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 

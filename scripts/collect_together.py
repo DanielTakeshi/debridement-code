@@ -22,7 +22,7 @@ import sys
 VERSION         = '00'
 ORIGINAL_IMAGE  = 'images/left_image.jpg'
 IM_VISUALS_DIR  = 'images/visuals/'
-IM_VISUALS_FILE = 'config/calibration_results/data_v'+VERSION+'.p'
+IM_VISUALS_FILE = 'config/calibration_results/data_v'+VERSION+'_36only.p'
 
 
 def load_data(filename):
