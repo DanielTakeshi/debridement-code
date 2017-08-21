@@ -28,12 +28,13 @@ np.set_printoptions(suppress=True)
 ###########################
 
 VERSION_INPUT  = '00'
-VERSION_OUTPUT = '03' # See README in images directory for details
+VERSION_OUTPUT = '04' # See README in `images/` for details on which number to use.
 ESC_KEYS = [27, 1048603]
 
-TOPK_CONTOURS  = 8 # Maybe not worry about getting *exactly* the same ...
-CLOSE_ANGLE    = 10 # I think 25 is good for pumpkin, 10 for sunflower.
-ROBOT_SPEED    = 0.06 # careful :-)
+# Adjust carefully!!
+ROBOT_SPEED    = 0.06 # careful :-) 0.03 for regular, 0.06 for fast.
+CLOSE_ANGLE    = 25 # I think 25 is good for pumpkin, 10 for sunflower.
+TOPK_CONTOURS  = 8
 
 # Loading stuff.
 RF_REGRESSOR = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION_INPUT+'.p', 'r'))
