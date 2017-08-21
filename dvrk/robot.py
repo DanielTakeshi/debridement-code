@@ -544,7 +544,7 @@ class robot:
 
 
     #homes the robot at a safe speed, opens the gripper 
-    def home(self, open_gripper=True):
+    def home(self, open_gripper=True, speed=0.03):
         if open_gripper:
             self.open_gripper(90)
 
@@ -556,7 +556,7 @@ class robot:
         pos = [post[0], post[1], post[2]]
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
         time.sleep(1)
-        self.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), FAST_SPEED)
+        self.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), speed)
         time.sleep(1)
 
 

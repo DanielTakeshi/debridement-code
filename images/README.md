@@ -23,3 +23,4 @@ These are for saving the initial images from the open loop stuff, since I want t
 - Version 00: for sunflower seeds, horizontal orientation, with 8 seeds (I had to fiddle a lot due to using the raw tissue phantom as the background.
 - Version 01: for pumpkin seeds, horizontal orientation, with 8 seeds. Fortunately, due to the white background, it's easy to detect.
 - Version 02: for sunflower seeds, horizontal orientation, with 8 seeds, BUT a while background (since that makes detection easier).
+- Version 03: same as version 2 except the speed is now 0.06. :-)

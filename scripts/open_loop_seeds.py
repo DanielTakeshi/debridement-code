@@ -28,16 +28,20 @@ np.set_printoptions(suppress=True)
 ###########################
 
 VERSION_INPUT  = '00'
-VERSION_OUTPUT = '02' # See README in images directory for details
-ESC_KEYS       = [27, 1048603]
+VERSION_OUTPUT = '03' # See README in images directory for details
+ESC_KEYS = [27, 1048603]
+
 TOPK_CONTOURS  = 8 # Maybe not worry about getting *exactly* the same ...
 CLOSE_ANGLE    = 10 # I think 25 is good for pumpkin, 10 for sunflower.
-ROTATION       = utilities.get_average_rotation(VERSION_INPUT)
-TFX_ROTATION   = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
+ROBOT_SPEED    = 0.06 # careful :-)
 
 # Loading stuff.
 RF_REGRESSOR = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION_INPUT+'.p', 'r'))
 PARAMETERS   = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION_INPUT+'.p', 'r'))
+
+# Rotations
+ROTATION     = utilities.get_average_rotation(VERSION_INPUT)
+TFX_ROTATION = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
 # Saving stuff
 IMAGE_DIR = 'images/seeds_v'+VERSION_OUTPUT
@@ -122,17 +126,17 @@ def motion_planning(contours_by_size, img, arm):
     arm.open_gripper(degree=90, time_sleep=2)
     for robot_pt in robot_points_to_visit:
         pos = [robot_pt[0], robot_pt[1], robot_pt[2]+ZOFFSET_SAFETY]
-        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), 0.03)
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), ROBOT_SPEED)
 
         pos[2] -= ZOFFSET_SAFETY
-        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), 0.03)
-        arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2)
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), ROBOT_SPEED)
+        arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2) # Need >=2 seconds!
 
         pos[2] += ZOFFSET_SAFETY
-        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), 0.03)
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), ROBOT_SPEED)
 
-        arm.home(open_gripper=False)
-        arm.open_gripper(degree=90, time_sleep=2)
+        arm.home(open_gripper=False, speed=ROBOT_SPEED)
+        arm.open_gripper(degree=90, time_sleep=2) # Need >=2 seconds!
 
 
 if __name__ == "__main__":
