@@ -28,20 +28,21 @@ np.set_printoptions(suppress=True)
 ###########################
 
 VERSION_INPUT  = '00'    # I think we'll keep it at 00 for ICRA 2018.
-VERSION_OUTPUT = '99'    # See README in `images/` for details on numbers, e.g. use 99 for debugging.
+VERSION_OUTPUT = '06'    # See README in `images/` for details on numbers, e.g. use 99 for debugging.
 ESC_KEYS = [27, 1048603]
 
 # Adjust carefully!!
-CLOSE_ANGLE    = 25      # I think 25 is good for pumpkin, 10 for sunflower.
+CLOSE_ANGLE    = 10      # I think 25 is good for pumpkin, 10 for sunflower.
 TOPK_CONTOURS  = 8       # I usually do 8, for 8 seeds.
 INTERPOLATE    = True    # We thought `False` would be faster but alas it doesn't even go to the locations.
-SPEED_CLASS    = 'Slow'  # 'Slow' (0.03), 'Medium' (0.06), or 'Fast' (frame).
+SPEED_CLASS    = 'Fast'  # See `measure_speeds.py` for details.
 
 # Loading stuff.
 RF_REGRESSOR = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION_INPUT+'.p', 'r'))
 PARAMETERS   = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION_INPUT+'.p', 'r'))
 
-# Rotations
+# Rotations and positions.
+HOME_POS     = [0.00, 0.06, -0.13]
 ROTATION     = utilities.get_average_rotation(VERSION_INPUT)
 TFX_ROTATION = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
@@ -51,10 +52,8 @@ IMAGE_DIR = 'images/seeds_v'+VERSION_OUTPUT
 # Offsets, some heuristic (e.g. x-coord), some (e.g. the z-coord) for safety.
 ARM1_XOFFSET = -0.0005
 ARM1_YOFFSET = 0.000
-ARM1_ZOFFSET = -0.0015
+ARM1_ZOFFSET = -0.0020
 ZOFFSET_SAFETY = 0.003 # What I actually use in practice
-
-HOME_POS = [0.00, 0.06, -0.13]
 
 ##########################
 # END OF `CONFIGURATION` #

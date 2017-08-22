@@ -23,9 +23,19 @@ Version 3 might be best to use in practice since there's a slight advantage to o
 These are for saving the initial images from the open loop stuff, since I want to argue that any errors we have will be because of perception problems, not calibration.
 
 - Version 00: for sunflower seeds, horizontal orientation, with 8 seeds (I had to fiddle a lot due to using the raw tissue phantom as the background. Unfortunately I don't think I'm using this for the paper, but at least it's good to get this data.
-- Version 01: for pumpkin seeds, horizontal orientation, with 8 seeds. Fortunately, due to the white background, it's easy to detect.
-- Version 02: for sunflower seeds, horizontal orientation, with 8 seeds, BUT a while background (since that makes detection easier).
-- Version 03: same as version 2 (i.e. *sunflower*) except the speed is now 0.06. :-)
-- Version 04: same as version 1 (i.e. *pumpkin*) except the speed is now 0.06. :-)
+
+**Pumpkin seeds**, with 8 seeds, white background, etc.
+
+- `seeds_v01`: slow speed
+- `seeds_v03`: medium speed
+- `seeds_v05`: fast speed
+
+**Sunflower seeds**, with 8 seeds, white background, etc.
+
+- `seeds_v02`: slow speed
+- `seeds_v04`: medium speed
+- `seeds_v06`: fast speed
+
+**Debugging**:
 
 - Version 99: for debugging, e.g. with super fast movement. :-)
