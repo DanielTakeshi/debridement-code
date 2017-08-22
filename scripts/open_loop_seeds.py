@@ -27,14 +27,15 @@ np.set_printoptions(suppress=True)
 # ADJUST THESE AS NEEDED! #
 ###########################
 
-VERSION_INPUT  = '00'
-VERSION_OUTPUT = '04' # See README in `images/` for details on which number to use.
+VERSION_INPUT  = '00'    # I think we'll keep it at 00 for ICRA 2018.
+VERSION_OUTPUT = '99'    # See README in `images/` for details on numbers, e.g. use 99 for debugging.
 ESC_KEYS = [27, 1048603]
 
 # Adjust carefully!!
-ROBOT_SPEED    = 0.06 # careful :-) 0.03 for regular, 0.06 for fast.
-CLOSE_ANGLE    = 25 # I think 25 is good for pumpkin, 10 for sunflower.
-TOPK_CONTOURS  = 8
+CLOSE_ANGLE    = 25      # I think 25 is good for pumpkin, 10 for sunflower.
+TOPK_CONTOURS  = 8       # I usually do 8, for 8 seeds.
+INTERPOLATE    = True    # We thought `False` would be faster but alas it doesn't even go to the locations.
+SPEED_CLASS    = 'Slow'  # 'Slow' (0.03), 'Medium' (0.06), or 'Fast' (frame).
 
 # Loading stuff.
 RF_REGRESSOR = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION_INPUT+'.p', 'r'))
@@ -53,9 +54,22 @@ ARM1_YOFFSET = 0.000
 ARM1_ZOFFSET = -0.0015
 ZOFFSET_SAFETY = 0.003 # What I actually use in practice
 
+HOME_POS = [0.00, 0.06, -0.13]
+
 ##########################
 # END OF `CONFIGURATION` #
 ##########################
+
+def move(arm, pos):
+    """ Handles the different speeds we're using. """
+    if SPEED_CLASS == 'Slow':
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), 0.03)
+    elif SPEED_CLASS == 'Medium':
+        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), 0.06)
+    elif SPEED_CLASS == 'Fast':
+        arm.move_cartesian_frame(tfx.pose(pos, TFX_ROTATION), interpolate=INTERPOLATE)
+    else:
+        raise ValueError()
 
 
 def motion_planning(contours_by_size, img, arm):
@@ -121,22 +135,21 @@ def motion_planning(contours_by_size, img, arm):
         )
         print("({}, {})\n".format(left_pixels, robot_points_to_visit[-1]))
 
-
-    # With these robot points, now tell the robot to move to these points.
-    # Here is where I apply the vertical offsets, FYI.
+    # With robot points, tell it to _move_ to these points. Apply vertical offsets here, FYI.
+    # Using the `linear_interpolation` is slower and jerkier than just moving directly.
     arm.open_gripper(degree=90, time_sleep=2)
     for robot_pt in robot_points_to_visit:
         pos = [robot_pt[0], robot_pt[1], robot_pt[2]+ZOFFSET_SAFETY]
-        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), ROBOT_SPEED)
+        move(arm, pos)
 
         pos[2] -= ZOFFSET_SAFETY
-        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), ROBOT_SPEED)
+        move(arm, pos)
         arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2) # Need >=2 seconds!
 
         pos[2] += ZOFFSET_SAFETY
-        arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, TFX_ROTATION), ROBOT_SPEED)
+        move(arm, pos)
 
-        arm.home(open_gripper=False, speed=ROBOT_SPEED)
+        move(arm, HOME_POS)
         arm.open_gripper(degree=90, time_sleep=2) # Need >=2 seconds!
 
 

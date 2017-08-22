@@ -27,3 +27,5 @@ These are for saving the initial images from the open loop stuff, since I want t
 - Version 02: for sunflower seeds, horizontal orientation, with 8 seeds, BUT a while background (since that makes detection easier).
 - Version 03: same as version 2 (i.e. *sunflower*) except the speed is now 0.06. :-)
 - Version 04: same as version 1 (i.e. *pumpkin*) except the speed is now 0.06. :-)
+
+- Version 99: for debugging, e.g. with super fast movement. :-)

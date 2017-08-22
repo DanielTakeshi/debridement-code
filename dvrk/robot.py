@@ -495,7 +495,7 @@ class robot:
             self.move_cartesian_frame(abs_frame, interpolate)
             rospy.loginfo(rospy.get_caller_id() + ' -> completing absolute move cartesian rotation')
 
-    # DONE: Aceept only tfx poses as input 
+    # DONE: Accept only tfx poses as input 
     def move_cartesian_frame(self, abs_frame, interpolate=True):
         """Absolute move by Frame in cartesian plane.
         :param abs_frame: abs_frame as a tfx.canonical.CanonicalTransform
@@ -507,9 +507,11 @@ class robot:
             raise Exception("abs_frame must be a tfx.canonical.CanonicalTransform object")
             # move based on value of interpolate
         if (interpolate):
-            self.__move_cartesian_goal(abs_frame)
+            # Daniel: this works.
+            self.__move_cartesian_goal(abs_frame) 
         else:
-            self.__move_cartesian_direct(abs_frame)
+            # Daniel: this _doesn't_ work, unless we're calling it from `linear_interpolation`.
+            self.__move_cartesian_direct(abs_frame) 
         rospy.loginfo(rospy.get_caller_id() + ' -> completing absolute move cartesian frame')
 
     # DONE: just put __move_cartesian_SLERP code inside this method + update doc string
@@ -541,8 +543,6 @@ class robot:
         rospy.loginfo(rospy.get_caller_id() + ' -> completing absolute move cartesian SLERP')
         return 1
 
-
-
     #homes the robot at a safe speed, opens the gripper 
     def home(self, open_gripper=True, speed=0.03):
         if open_gripper:
@@ -555,11 +555,9 @@ class robot:
 
         pos = [post[0], post[1], post[2]]
         rot = tfx.tb_angles(rott[0], rott[1], rott[2])
-        time.sleep(1)
+        #time.sleep(1)
         self.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), speed)
-        time.sleep(1)
-
-
+        #time.sleep(1)
 
     #DONE: Remove
     def __frame_to_tfxPose(self, frame):
@@ -608,7 +606,8 @@ class robot:
         self.__goal_reached = False
         # recursively call this function until end is reached
         self.set_position_goal_cartesian.publish(end_position)
-        self.__goal_reached_event.wait(20) # 1 minute at most
+        #self.__goal_reached_event.wait(20) # 1 minute at most
+        self.__goal_reached_event.wait(10) # 1 minute at most
         if not self.__goal_reached:
             return False
         rospy.loginfo(rospy.get_caller_id() + ' -> compeleting set position goal cartesian publish and wait')
