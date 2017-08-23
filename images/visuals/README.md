@@ -20,7 +20,18 @@ std:    4.46840627556
 
 (Skipping since it's with the bad RF and also incomplete.)
 
+Never mind, we should have it.
 
+```
+Distances among the pixels, (x,y) only:
+mean:   31.0500129492
+median: 31.3128541783
+max:    41.1096095822
+min:    23.0217288664
+std:    3.82710018844
+```
+
+The reason why it's bad is because the rigid body "thinks" it is already so good, so there is very little room for improvement.
 
 ## Version 02
 
