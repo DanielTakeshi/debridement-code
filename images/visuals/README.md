@@ -64,3 +64,16 @@ std:    4.56665945078
 
 Awesome!
 
+
+## Version 05
+
+With a 1.5mm decrease in the x-coordinate.
+
+```
+Distances among the pixels, (x,y) only:
+mean:   12.9640766292
+median: 12.1448007947
+max:    24.3515913238
+min:    1.0
+std:    6.18146381764
+```

@@ -7,8 +7,6 @@ is, and then the code should automatically record stuff. Be careful to record th
 so it's manual but I'm usually good with this.
 
 UPDATE: second version, with the better random forest.  :-)
-
-UPDATE: haven't tested with the new `utilities` API but I _think_ it should be OK.
 """
 
 import cv2
@@ -22,8 +20,8 @@ from autolab.data_collector import DataCollector
 from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
-# Double check these as needed. CHECK THE NUMBERS, i.e. v00, v01, etc.
-OUTVERSION   = '99' # for _storing_ stuff, use 99 for debugging
+# Double check these as needed, and see `images/README.md` for details.
+OUTVERSION   = '05' # for _storing_ stuff, use 99 for debugging
 VERSION      = '00' # for _loading_ stuff
 
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
@@ -34,7 +32,7 @@ MAX_NUM_ADD  = 36
 ROTATION     = utilities.get_average_rotation(VERSION)
 
 # Offsets, some heuristic, some (e.g. the z-coordinate) to avoid damaging the surface.
-ARM1_XOFFSET = -0.001
+ARM1_XOFFSET = -0.0015
 ARM1_YOFFSET = 0.000
 ARM1_ZOFFSET = 0.000
 
