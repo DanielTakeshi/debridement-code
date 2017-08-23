@@ -30,37 +30,12 @@ import cv2
 import numpy as np
 import pickle
 import sys
+import utilities
 
 # IMPORTANT! CHANGE THESE!
-VERSION  = str(0).zfill(2)
+VERSION  = '10' # 00 for the gripper, 10 for the scissors
 IMDIR    = "images/"
 ESC_KEYS = [27, 1048603]
-
-
-def initializeRobots():
-    d = DataCollector()
-    r1 = robot("PSM1") # left (but my right)
-    r2 = robot("PSM2") # right (but my left)
-    time.sleep(2)
-    return (r1,r2,d)
-
-
-def storeData(filename, arm1):
-    """ 
-    Stores data by repeatedly appending arm1 data points for the file. Then other
-    code simply enumerates over the whole thing. This is wrt a single camera.
-    UPDATE: Actually I manually changed version 00 to be a single list. :-)
-    """
-    f = open(filename, 'a')
-    pickle.dump(arm1, f)
-    f.close()
-
-
-def filter_point(x,y):
-    ignore = False
-    if (x < 500 or x > 1500 or y < 75 or y > 1000):
-        ignore = True
-    return ignore
 
 
 def calibrateImage(contours, img, arm1, outfile):
@@ -82,7 +57,7 @@ def calibrateImage(contours, img, arm1, outfile):
     num_saved = 0
 
     for i, (cX, cY, approx, peri) in enumerate(contours):  
-        if filter_point(cX, cY):
+        if utilities.filter_point(cX, cY, 500, 1500, 75, 1000):
             continue
         image = img.copy()
 
@@ -110,13 +85,13 @@ def calibrateImage(contours, img, arm1, outfile):
 
         # Only store this contour if both keys were not escape keys.
         if key1 not in ESC_KEYS:
-            storeData(outfile, a1)
+            utilities.storeData(outfile, a1)
             num_saved += 1
         cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    arm1, _, d = initializeRobots()
+    arm1, _, d = utilities.initializeRobots()
     arm1.close_gripper()
 
     # Keep this in case I want to debug some images.

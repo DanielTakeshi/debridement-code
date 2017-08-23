@@ -2,6 +2,8 @@
 
 
 - `calib_circlegrid_left_v00_ONELIST.p` and the one for `right` contain ONE LIST with all the data needed. They are of length 36.
+    
+    - Update: I also have version 10 now, which is for that cutting tool. The "Monopolar Curved Scissors." I have a picture of the original tool that I've been using. Oh, and by the way, version 10 has 35 points, not 36, because the right camera is utter awful.
 
 - The `backup` directory has the original pickle files where we have to load one by one. I had to make the lists since I mistakenly double counted one of the circles (but I knew which one, don't worry...) and manually removed it. The point is, it's easier to load it in with one list, so I changed it to do that!
 
