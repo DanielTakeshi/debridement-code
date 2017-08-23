@@ -48,3 +48,5 @@
   Medium: 2.62 cm/sec
   Fast:   6.71 cm/sec
   ```
+
+  - Use `test_color_detection.py` to test if I can detect colors in an image. Unfortunately this is unlikely to work.

@@ -12,8 +12,10 @@ import numpy as np
 import pickle
 import sys
 import time
+import utilities
 DIR = "camera_location/"
 
+VERSION = '10'
 
 # Don't change these!!
 left_xx = 650
@@ -25,15 +27,6 @@ right_xx = 575
 right_yy = 100
 right_ww = 775
 right_hh = 700
-
-
-
-def initializeRobots():
-    d = DataCollector()
-    r1 = robot("PSM1") # left (but my right)
-    r2 = robot("PSM2") # right (but my left)
-    time.sleep(2)
-    return (r1,r2,d)
 
 
 # todo maybe put some calibration method here to help fix it as needed?
@@ -49,7 +42,7 @@ def save_bounding_box(image, left):
     hh = left_hh if left else right_hh
     name = 'left' if left else 'right'
 
-    cv2.imwrite(DIR+'calibration_blank_image_'+name+'.jpg', image)
+    cv2.imwrite(DIR+'calibration_blank_image_'+name+'_v'+VERSION+'.jpg', image)
     cv2.rectangle(image, (xx,yy), (xx+ww, yy+hh), (0,255,0), 2)
 
     cv2.putText(img=image, text='{},{}'.format(xx,yy),       org=(xx,yy),       
@@ -64,17 +57,17 @@ def save_bounding_box(image, left):
     cv2.imshow("Camera Image w/BBox", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    cv2.imwrite(DIR+'calibration_bbox_image_'+name+'.jpg', image)
+    cv2.imwrite(DIR+'calibration_bbox_image_'+name+'_v'+VERSION+'.jpg', image)
 
 
 if __name__ == "__main__":
-    arm1, _, d = initializeRobots()
+    arm1, _, d = utilities.initializeRobots()
     arm1.close_gripper()
 
     image = d.left_image.copy()
     save_bounding_box(image, left=True)
-    pickle.dump(d.left_contours, open(DIR+'contours_left.p', 'w'))
+    pickle.dump(d.left_contours, open(DIR+'contours_left_v'+VERSION+'.p', 'w'))
 
     image = d.right_image.copy()
     save_bounding_box(image, left=False)
-    pickle.dump(d.right_contours, open(DIR+'contours_right.p', 'w'))
+    pickle.dump(d.right_contours, open(DIR+'contours_right_v'+VERSION+'.p', 'w'))

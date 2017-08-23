@@ -20,8 +20,8 @@ from autolab.data_collector import DataCollector
 from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
-# Double check these as needed, and see `images/README.md` for details.
-OUTVERSION   = '01' # for _storing_ stuff, use 99 for debugging
+# DOUBLE CHECK, and see `images/README.md` for details.
+OUTVERSION   = '99' # for _storing_ stuff, use 99 for debugging
 VERSION      = '00' # for _loading_ stuff
 
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
@@ -32,7 +32,7 @@ MAX_NUM_ADD  = 36
 ROTATION     = utilities.get_average_rotation(VERSION)
 
 # Offsets, some heuristic, some (e.g. the z-coordinate) to avoid damaging the surface.
-ARM1_XOFFSET = 0.000
+ARM1_XOFFSET = -0.0005
 ARM1_YOFFSET = 0.000
 ARM1_ZOFFSET = 0.000
 
