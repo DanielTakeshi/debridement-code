@@ -59,7 +59,8 @@ if __name__ == "__main__":
 
         if firstkey not in ESC_KEYS:
             # First, determine where the robot will move to based on the pixels. This forms the
-            # input to the good random forest.
+            # input to the good random forest. Normally we'd have the good RF inside there as input
+            # as `better_rf` but of course we do not have that yet! This is the rigid body only.
             target = utilities.left_pixel_to_robot_prediction(
                     left_pt=(cX,cY), 
                     params=params, 
@@ -77,6 +78,7 @@ if __name__ == "__main__":
             time.sleep(5)
 
             # This should NOT be the input to the RF! We should use `pos` or `target` instead.
+            # BUT we still need it to get the correct offsets!!
             predicted_pos = arm.get_current_cartesian_position() 
 
             # IMPORTANT! Now I do some human motion!!
@@ -90,7 +92,9 @@ if __name__ == "__main__":
 
             # Now record the new position of the arm, and save it.
             new_pos = arm.get_current_cartesian_position()
-            data_pt = {'predicted_pos': pos, 'new_pos': new_pos}
+            data_pt = {'original_robot_point_prediction':          pos,
+                       'measured_robot_point_before_human_change': predicted_pos, 
+                       'measured_robot_point_after_human_change':  new_pos}
             utilities.storeData(OUTPUT_FILE, data_pt)
 
             # Some stats for debugging, etc.

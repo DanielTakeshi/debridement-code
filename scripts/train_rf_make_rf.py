@@ -69,12 +69,15 @@ if __name__ == "__main__":
             break
     assert len(data) == 36 # For now
 
-    # Remember, each data_pt['...'] is from `arm.get_current_cartesian_position()`.
-    before = [data_pt['predicted_pos'] for data_pt in data]
-    after  = [data_pt['new_pos'].position[:3] for data_pt in data]
-    before = np.squeeze(np.array(before))
-    after  = np.squeeze(np.array(after))
-    errors = (before - after)[:, :2] # Ignore z coordinate
+    # Remember, the _predicted_ (not the actual) is the _input_ to the RF.
+    X_train = [data_pt['original_robot_point_prediction'] for data_pt in data]
+    before  = [data_pt['measured_robot_point_before_human_change'].position[:3] for data_pt in data]
+    after   = [data_pt['measured_robot_point_after_human_change'].position[:3]  for data_pt in data]
 
-    rf = estimate_rf(X_train=before, Y_train=errors)
+    X_train = np.squeeze(np.array(X_train))
+    before  = np.squeeze(np.array(before))
+    after   = np.squeeze(np.array(after))
+
+    errors  = (before - after)[:, :2] # Ignore z coordinate
+    rf = estimate_rf(X_train=X_train, Y_train=errors)
     pickle.dump(rf, OUTFILE_RF)
