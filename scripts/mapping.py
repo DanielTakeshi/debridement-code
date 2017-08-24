@@ -95,7 +95,8 @@ def pixels_to_3d():
 
 
 def estimate_rf(X_train, Y_train, debug):
-    """ Hopefully this will narrow down errors even further.
+    """ Hopefully this will narrow down errors even further. UPDATE: this is the bad RF,
+    but it's good to have a bad baseline anyway.
     
     X_train: the camera coordinates, array of (x,y,z) stuff, where z is computed via
             our method here which uses points from both cameras to get depth.

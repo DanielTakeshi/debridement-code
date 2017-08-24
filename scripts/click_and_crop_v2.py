@@ -6,7 +6,7 @@ target point and the actual robot points. Then I'll drag a box around where the 
 is, and then the code should automatically record stuff. Be careful to record the right stuff,
 so it's manual but I'm usually good with this.
 
-UPDATE: second version, with the better random forest.  :-)
+BE CAREFUL TO ACTUALLY DRAG SOMETHING, if you click once it will cause an assertion error.
 """
 
 import cv2
@@ -21,18 +21,18 @@ from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 # DOUBLE CHECK, and see `images/README.md` for details.
-OUTVERSION   = '99' # for _storing_ stuff, use 99 for debugging
-VERSION      = '00' # for _loading_ stuff
+OUTVERSION   = '12' # for _storing_ stuff, use 99 for debugging, changes often.
+VERSION      = '10' # for _loading_ stuff, generally changes for tool changes.
 
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
 IMDIR        = 'images/check_regressors_v'+OUTVERSION+'/'
+ROTATION     = utilities.get_average_rotation(VERSION)
+MAX_NUM_ADD  = 36
 ESC_KEYS     = [27, 1048603]
 USE_RF       = True
-MAX_NUM_ADD  = 36
-ROTATION     = utilities.get_average_rotation(VERSION)
 
 # Offsets, some heuristic, some (e.g. the z-coordinate) to avoid damaging the surface.
-ARM1_XOFFSET = -0.0005
+ARM1_XOFFSET = 0.000
 ARM1_YOFFSET = 0.000
 ARM1_ZOFFSET = 0.000
 
@@ -97,7 +97,10 @@ if __name__ == "__main__":
 
     # Do NOT use params[random_forest] but instead use `better_rf`.
     params = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION+'.p', 'r'))
-    better_rf = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION+'.p', 'r'))
+    if USE_RF:
+        better_rf = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION+'.p', 'r'))
+    else:
+        better_rf = None
 
     # Use the d.left_image for calibration. Originally I used a saved image, but it should
     # be determined here since the paper location and camera might adjust slightly.
@@ -128,7 +131,8 @@ if __name__ == "__main__":
                     ARM1_XOFFSET=ARM1_XOFFSET,
                     ARM1_YOFFSET=ARM1_YOFFSET,
                     ARM1_ZOFFSET=ARM1_ZOFFSET,
-                    USE_RF=USE_RF)
+                    USE_RF=USE_RF
+            )
             pos = [target[0], target[1], target[2]]
             rot = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 

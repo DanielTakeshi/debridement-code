@@ -70,7 +70,7 @@ def show_images(d):
 
 
 def left_pixel_to_robot_prediction(left_pt, params, better_rf, 
-        ARM1_XOFFSET, ARM1_YOFFSET, ARM1_ZOFFSET, USE_RF=True):
+        ARM1_XOFFSET, ARM1_YOFFSET, ARM1_ZOFFSET, USE_RF=True, bad_rf=False):
     """ Given pixels from the left camera (cx,cy) representing camera point, 
     determine the corresponding (x,y,z) robot frame.
 
@@ -87,6 +87,9 @@ def left_pixel_to_robot_prediction(left_pt, params, better_rf,
         These are floats used for making offsets.
     USE_RF: [boolean]
         Whether to apply the random forest or not (we usually should).
+    bad_rf: [boolean]
+        If True, apply the RF that was trained with the rigid body (i.e. not the human-
+        guided version). Should normally be `False`.
 
     Returns
     -------
@@ -112,8 +115,10 @@ def left_pixel_to_robot_prediction(left_pt, params, better_rf,
     robot_pt = (params['RB_matrix']).dot(camera_pt)
 
     if USE_RF:
-        residuals = np.squeeze( better_rf.predict([camera_pt[:3]]) )
-        #residuals = np.squeeze( params['rf_residuals'].predict([camera_pt[:3]]) )[:2] # Bad way.
+        if bad_rf:
+            residuals = np.squeeze( params['rf_residuals'].predict([camera_pt[:3]]) )[:2] 
+        else:
+            residuals = np.squeeze( better_rf.predict([robot_pt]) ) # Use _robot_point_!!
         assert len(residuals) == 2
         residuals = np.concatenate((residuals,np.zeros(1))) # Add zero for z-coord.
         robot_pt = robot_pt - residuals

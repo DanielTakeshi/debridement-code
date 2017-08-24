@@ -1,5 +1,9 @@
 # Stats
 
+First gripper, followed by scissors.
+
+# First Gripper
+
 ## Version 00
 
 (Skipping since there are 41 data points, I _think_ I can fix by deleting the first five.)
@@ -87,4 +91,41 @@ median: 12.1448007947
 max:    24.3515913238
 min:    1.0
 std:    6.18146381764
+```
+
+
+# Scissors
+
+## Version 10
+
+Wow, a rigid body by itself is good! The RF might only be useful for the last three rows of the grid.
+
+```
+Distances among the pixels, (x,y) only:
+mean:   7.64911082659
+median: 5.89414452228
+max:    18.973665961
+min:    1.0
+std:    5.79674172908
+```
+
+## Version 11
+
+Bad RF.
+
+```
+Distances among the pixels, (x,y) only:
+mean:   7.25458082261
+median: 5.19258240357
+max:    20.3960780544
+min:    1.0
+std:    5.53864718535
+```
+
+## Version 12
+
+Good RF.
+
+```
+
 ```

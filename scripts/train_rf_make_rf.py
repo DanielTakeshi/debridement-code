@@ -15,8 +15,9 @@ import time
 np.set_printoptions(suppress=True)
 
 # DOUBLE CHECK ALL THESE!! Especially any version numbers.
-FILE_FOR_RF = open('config/calibration_results/data_for_rf_v00.p', 'r')
-OUTFILE_RF  = open('config/mapping_results/random_forest_predictor_v00.p', 'w')
+VERSION = '10'
+FILE_FOR_RF = open('config/calibration_results/data_for_rf_v'+VERSION+'.p', 'r')
+OUTFILE_RF  = open('config/mapping_results/random_forest_predictor_v'+VERSION+'.p', 'w')
 
 
 def estimate_rf(X_train, Y_train, debug=True):

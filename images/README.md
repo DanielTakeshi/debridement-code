@@ -15,6 +15,8 @@ For images after my UAI trip. Note that some of the images that were used to che
 
 Version 3 might be best to use in practice since there's a slight advantage to overshooting x due to the angle of the gripper and the seed shapes.
 
+- Version 10 is for the scissors with the rigid body only mapping.
+
 ## Visuals
 
 (There's a README in this directory.)
