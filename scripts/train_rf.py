@@ -15,11 +15,11 @@ from autolab.data_collector import DataCollector
 from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
-# Double check these as needed. CHECK THE NUMBERS, i.e. v00, v01, etc.
-OUTVERSION   = '10' # for _storing_ stuff, use 99 for debugging
+# Double check these as needed. Here, the version numbers don't change that much.
+OUTVERSION   = '10' # for _storing_ stuff
 VERSION      = '10' # for _loading_ stuff
 
-# Other stuff, e.g. consider z-offset if the paper is at risk of being damaged.
+# Other stuff.
 OUTPUT_FILE  = 'config/calibration_results/data_for_rf_v'+OUTVERSION+'.p'
 ESC_KEYS     = [27, 1048603]
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
@@ -72,9 +72,9 @@ if __name__ == "__main__":
             pos = [target[0], target[1], target[2]]
             rot = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
-            # Robot moves to that point and THEN lowers itself. Will likely be off. 
-            # I think 6 seconds is enough for the camera to refresh. But save the frame!
+            # Robot moves to that point. Will likely be off just a bit. 
             arm.move_cartesian_frame_linear_interpolation(tfx.pose(pos, rot), 0.03)
+            time.sleep(5)
 
             # This should NOT be the input to the RF! We should use `pos` or `target` instead.
             predicted_pos = arm.get_current_cartesian_position() 

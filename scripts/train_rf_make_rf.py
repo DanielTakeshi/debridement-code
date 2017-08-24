@@ -70,7 +70,7 @@ if __name__ == "__main__":
     assert len(data) == 36 # For now
 
     # Remember, each data_pt['...'] is from `arm.get_current_cartesian_position()`.
-    before = [data_pt['predicted_pos'].position[:3] for data_pt in data]
+    before = [data_pt['predicted_pos'] for data_pt in data]
     after  = [data_pt['new_pos'].position[:3] for data_pt in data]
     before = np.squeeze(np.array(before))
     after  = np.squeeze(np.array(after))
