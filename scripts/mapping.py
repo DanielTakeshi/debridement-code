@@ -12,12 +12,13 @@ import numpy as np
 import pickle
 import sys
 import time
+import utilities
 np.set_printoptions(suppress=True)
 
 # DOUBLE CHECK ALL THESE!! Especially the version number!
-VERSION      = '00'
-LEFT_POINTS  = pickle.load(open('config/calib_circlegrid_left_v00_ONELIST.p',  'r'))
-RIGHT_POINTS = pickle.load(open('config/calib_circlegrid_right_v00_ONELIST.p', 'r'))
+VERSION      = '10'
+LEFT_POINTS  = pickle.load(open('config/calib_circlegrid_left_v'+VERSION+'_ONELIST.p',  'r'))
+RIGHT_POINTS = pickle.load(open('config/calib_circlegrid_right_v'+VERSION+'_ONELIST.p', 'r'))
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
 NUM_POINTS   = len(LEFT_POINTS)
@@ -146,7 +147,10 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
 
     UPDATE: Also returns the random forest for estimating the residual noise!
     """
-    assert camera_points_3d.shape == robot_points_3d.shape == (36,3)
+    if VERSION == '00':
+        assert camera_points_3d.shape == robot_points_3d.shape == (36,3)
+    elif VERSION == '10':
+        assert camera_points_3d.shape == robot_points_3d.shape == (35,3)
     A = camera_points_3d.T # (3,N)
     B = robot_points_3d.T  # (3,N)
 
@@ -282,8 +286,8 @@ def correspond_left_right_pixels(left, right, debug=True):
                         fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=0.75, color=(0,0,255), thickness=2)
 
-        cv2.imwrite('images/calib_left_w_left_points.jpg', img_left)
-        cv2.imwrite('images/calib_right_w_left_points.jpg', img_right)
+        cv2.imwrite('images/calib_left_w_left_points_v'+VERSION+'.jpg', img_left)
+        cv2.imwrite('images/calib_right_w_left_points_v'+VERSION+'.jpg', img_right)
 
         # Now back to traditional debugs.
         print("\nBegin debug prints:")
@@ -337,7 +341,10 @@ def left_pixel_to_robot_prediction(left, params, true_points):
 
 if __name__ == "__main__":
     # Get the 3D **camera** points.
-    assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
+    if VERSION == '00':
+        assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
+    elif VERSION == '10':
+        assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 35
     left, right, points_3d = pixels_to_3d()
     debug_1(left, right, points_3d)
 

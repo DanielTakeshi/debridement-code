@@ -7,12 +7,13 @@ import numpy as np
 import pickle
 import sys
 import time
+import utilities
 
 
 def show_points(image, left):
-    name = 'config/calib_circlegrid_right_v00_ONELIST.p' 
+    name = 'config/calib_circlegrid_right_v10_ONELIST.p' 
     if left:
-        name = 'config/calib_circlegrid_left_v00_ONELIST.p' 
+        name = 'config/calib_circlegrid_left_v10_ONELIST.p' 
     contours = pickle.load(open(name, 'r'))
 
     for i,(pos,rot,cx,cy) in enumerate(contours):
@@ -29,5 +30,6 @@ def show_points(image, left):
 
 
 if __name__ == "__main__":
-    show_points(cv2.imread('camera_location/calibration_blank_image_left.jpg').copy(),  left=True)
-    show_points(cv2.imread('camera_location/calibration_blank_image_right.jpg').copy(), left=False)
+    arm1, _, d = utilities.initializeRobots()
+    show_points(d.left_image.copy(),  left=True)
+    show_points(d.right_image.copy(), left=False)
