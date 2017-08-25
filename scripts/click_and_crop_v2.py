@@ -21,16 +21,16 @@ from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 # DOUBLE CHECK, and see `images/README.md` for details.
-OUT_VERSION  = '99' # for _storing_ stuff, use 99 for debugging, changes often.
+OUT_VERSION  = '02' # for _storing_ stuff, use 99 for debugging, changes often.
 IN_VERSION   = '00' # for _loading_ stuff, generally changes for tool changes.
 
-USE_RF       = False
+USE_RF       = True
 BAD_RF       = False # Only set to `True` in RARE cases... must set `USE_RF` True as well.
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUT_VERSION+'.p'
 IMDIR        = 'images/check_regressors_v'+OUT_VERSION+'/'
 ROTATION     = utilities.get_average_rotation(IN_VERSION)
-MAX_NUM_ADD  = 36
 ESC_KEYS     = [27, 1048603]
+MAX_NUM_ADD  = 36
 
 # Offsets, some heuristic, some (e.g. the z-coordinate) to avoid damaging the surface.
 ARM1_XOFFSET = 0.000

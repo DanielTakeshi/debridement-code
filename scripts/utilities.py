@@ -118,7 +118,7 @@ def left_pixel_to_robot_prediction(left_pt, params, better_rf,
         if bad_rf:
             residuals = np.squeeze( params['rf_residuals'].predict([camera_pt[:3]]) )[:2] 
         else:
-            residuals = np.squeeze( better_rf.predict([robot_pt]) ) # Use _robot_point_!!
+            residuals = np.squeeze( better_rf.predict([robot_pt]) ) # Use _robot_point_ !!
         assert len(residuals) == 2
         residuals = np.concatenate((residuals,np.zeros(1))) # Add zero for z-coord.
         robot_pt = robot_pt - residuals
