@@ -14,8 +14,8 @@ import sys
 import time
 np.set_printoptions(suppress=True)
 
-# DOUBLE CHECK ALL THESE!! Especially any version numbers.
-VERSION = '10'
+# DOUBLE CHECK ALL THESE!!
+VERSION = '00' # 00 for gripper, 10 for scissors.
 FILE_FOR_RF = open('config/calibration_results/data_for_rf_v'+VERSION+'.p', 'r')
 OUTFILE_RF  = open('config/mapping_results/random_forest_predictor_v'+VERSION+'.p', 'w')
 

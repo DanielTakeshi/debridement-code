@@ -16,8 +16,8 @@ from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 # Double check these as needed. Here, the version numbers don't change that much.
-OUTVERSION   = '10' # for _storing_ stuff
-VERSION      = '10' # for _loading_ stuff
+OUTVERSION   = '00' # for _storing_ stuff
+VERSION      = '00' # for _loading_ stuff, changes with tool!!
 
 # Other stuff.
 OUTPUT_FILE  = 'config/calibration_results/data_for_rf_v'+OUTVERSION+'.p'

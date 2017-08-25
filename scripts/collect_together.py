@@ -19,7 +19,7 @@ import pickle
 import sys
 
 # Double check these as needed, especially the versions.
-VERSION         = '11'
+VERSION         = '99'
 ORIGINAL_IMAGE  = 'images/left_image.jpg'
 IM_VISUALS_DIR  = 'images/visuals/'
 IM_VISUALS_FILE = 'config/calibration_results/data_v'+VERSION+'.p'
