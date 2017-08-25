@@ -46,6 +46,19 @@ def get_num_stuff_in_pickle_file(filename):
     return num
 
 
+def pickle_to_list(filename):
+    """ Counting stuff in a pickle file! """
+    f = open(filename,'r')
+    data = []
+    while True:
+        try:
+            data.append(pickle.load(f))
+        except EOFError:
+            break
+    assert len(data) >= 1
+    return data
+ 
+
 def call_wait_key(nothing=None):
     """ I have an ESC which helps me exit program. """
     ESC_KEYS = [27, 1048603]
@@ -168,9 +181,9 @@ def get_rotation_from_version(version):
     Replaces the old method of `get_average_rotation`.
     """
     if version == '00' or version == '10':
-        return [0, -10, -170]
+        return [0, -10, -170] # yaw 0 degrees
     elif version == '01':
-        return [0, 0, -165]
+        return [90, 0, -165]  # yaw 90 degrees
     else:
         raise ValueError()
 

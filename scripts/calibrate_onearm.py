@@ -50,7 +50,7 @@ def calibrateImage(contours, img, arm1, outfile):
     space to robot space. Whew. It's manual, but worth it. I put numbers
     to indicate how many we've saved. DO ONE SAVE PER CONTOUR so that I 
     can get a correspondence with left and right images after arranging
-    pixels in the correct ordering (though I don't think I have to do that.).
+    pixels in the correct ordering (though I don't think I have to do that).
     """
     utils.move(arm1, HOME_POS, ROTATION, 'Fast')
     arm1.close_gripper()
