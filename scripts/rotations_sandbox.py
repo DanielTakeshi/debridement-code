@@ -1,14 +1,24 @@
 """
-This is the open loop which uses a flat tissue and seeds on it (I'll probably do 8).
+Test with rotations here. Observations:
 
-Make sure I exit early if all eight seeds are not detected correctly!!
+0. `arm.move_cartesian_rotation(rot_0)` needs PyKDL data structure, not sure how that works.
 
-Save the output! It might be useful, e.g.:
+1. The "roll" to me actually looks like "yaw" if we view the long arm as an airplane.
 
-    clear; clear; python scripts/open_loop_seeds.py | tee images/seeds_v00/im_001.txt
+2. Fortunately, "pitch" has the intuitive interpretation, and "yaw" looks like the "roll." Yeah...
 
-where `im_001.txt` is assuming that we are on the 1st image. Be careful.
-PS: This WILL override any existing `im_001.txt` file if we have it.
+3. Angle limits:
+    yaw:   [-180, 180] # I think this has the full range of 360 degrees of motion. Good!
+    pitch: [-50, 50] # Limited, intuitively like moving wrist up and down.
+    roll:  [-180, -100] # Limited, intuitively like moving a wrist sideways, as in "yaw" I know...
+
+4. Will have to find good configurations for rotations. I think yaw of -120, 0, and 120 is good 
+since that covers the 360 degree circle uniformly and doesn't duplicate itself. So ... just find
+empiricaly good pitch and roll for that? Ideally those make it easier to grasp stuff.
+
+Edit: huh maybe just keeping pitch at -10 and roll at -170 is fine.
+For yaw=90 maybe have pitch=0, roll=-165? To test, just put some seeds out at 90 degrees
+and see how the pitch and roll looks.
 """
 
 from autolab.data_collector import DataCollector
@@ -35,13 +45,14 @@ ESC_KEYS = [27, 1048603]
 CLOSE_ANGLE    = 25      # I think 25 is good for pumpkin, 10 for sunflower.
 TOPK_CONTOURS  = 8       # I usually do 8, for 8 seeds.
 INTERPOLATE    = True    # We thought `False` would be faster but alas it doesn't even go to the locations.
-SPEED_CLASS    = 'Fast'  # See `measure_speeds.py` for details.
+SPEED_CLASS    = 'Slow'  # See `measure_speeds.py` for details.
 
 # Loading stuff.
 RF_REGRESSOR = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION_INPUT+'.p', 'r'))
 PARAMETERS   = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION_INPUT+'.p', 'r'))
 
 # Rotations and positions.
+# [   0.07827103  -12.19706825 -169.63700296]
 HOME_POS     = [0.00, 0.06, -0.13]
 ROTATION     = utilities.get_average_rotation(VERSION_INPUT)
 TFX_ROTATION = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
@@ -50,16 +61,16 @@ TFX_ROTATION = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 IMAGE_DIR = 'images/seeds_v'+VERSION_OUTPUT
 
 # Offsets, some heuristic (e.g. x-coord), some (e.g. the z-coord) for safety.
-ARM1_XOFFSET = 0.000
-ARM1_YOFFSET = 0.000
-ARM1_ZOFFSET = -0.001
+ARM1_XOFFSET   = 0.000
+ARM1_YOFFSET   = 0.000
+ARM1_ZOFFSET   = 0.004
 ZOFFSET_SAFETY = 0.003 # What I actually use in practice
 
 ##########################
 # END OF `CONFIGURATION` #
 ##########################
 
-def motion_planning(contours_by_size, img, arm):
+def motion_planning(contours_by_size, img, arm, rotations):
     """ The open loop.
     
     Parameters
@@ -70,6 +81,7 @@ def motion_planning(contours_by_size, img, arm):
         Image the camera sees, in BGR form (not RGB).
     arm: [dvrk arm]
         Represents the arm we're using for the DVRK.
+    rotations:
     """
     print("Identified {} contours but will keep top {}.".format(len(contours_by_size), TOPK_CONTOURS))
     img_for_drawing = img.copy()
@@ -125,18 +137,22 @@ def motion_planning(contours_by_size, img, arm):
     # With robot points, tell it to _move_ to these points. Apply vertical offsets here, FYI.
     # Using the `linear_interpolation` is slower and jerkier than just moving directly.
     arm.open_gripper(degree=90, time_sleep=2)
-    for robot_pt in robot_points_to_visit:
+
+    for (robot_pt, rot) in zip(robot_points_to_visit, rotations):
+        # Go to the point. Note: switch rotation **first**?
         pos = [robot_pt[0], robot_pt[1], robot_pt[2]+ZOFFSET_SAFETY]
-        utilities.move(arm, pos, ROTATION, SPEED_CLASS)
+        utilities.move(arm, HOME_POS, rot, SPEED_CLASS) 
+        utilities.move(arm, pos,      rot, SPEED_CLASS)
 
+        # Lower, close, and raise the end-effector.
         pos[2] -= ZOFFSET_SAFETY
-        utilities.move(arm, pos, ROTATION, SPEED_CLASS)
+        utilities.move(arm, pos, rot, SPEED_CLASS)
         arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2) # Need >=2 seconds!
-
         pos[2] += ZOFFSET_SAFETY
-        utilities.move(arm, pos, ROTATION, SPEED_CLASS)
+        utilities.move(arm, pos, rot, SPEED_CLASS)
 
-        utilities.move(arm, HOME_POS, ROTATION, SPEED_CLASS)
+        # Back to the home position.
+        utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
         arm.open_gripper(degree=90, time_sleep=2) # Need >=2 seconds!
 
 
@@ -147,4 +163,29 @@ if __name__ == "__main__":
     arm.close_gripper()
     print("arm home: {}".format(arm.get_current_cartesian_position()))
     utilities.show_images(d)
-    motion_planning(d.left_contours_by_size, d.left_image, arm)
+
+    # Test with angles. NOTE: no need to have yaw be outside [-89.9, 90].
+    #rotations = [
+    #        (45, -12, -170),
+    #        (90, -12, -170),
+    #        (135, -12, -170),
+    #        (180, -12, -170)
+    #]
+    #rotations = [
+    #        (-135, -12, -170),
+    #        (-90, -12, -170),
+    #        (-45, -12, -170),
+    #        (-180, -12, -170)
+    #]
+    rotations = [
+            (90, 0, -165),
+            (90, 0, -165),
+            (90, 0, -165),
+            (90, 0, -165),
+            (90, 0, -165),
+            (90, 0, -165),
+            (90, 0, -165),
+            (90, 0, -165)
+    ]
+
+    motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)

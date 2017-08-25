@@ -15,7 +15,7 @@ import numpy as np
 import os
 import pickle
 import sys
-import utilities
+import utilities as utils
 from autolab.data_collector import DataCollector
 from dvrk.robot import *
 np.set_printoptions(suppress=True)
@@ -28,8 +28,7 @@ USE_RF       = True
 BAD_RF       = False # Only set to `True` in RARE cases... must set `USE_RF` True as well.
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUT_VERSION+'.p'
 IMDIR        = 'images/check_regressors_v'+OUT_VERSION+'/'
-ROTATION     = utilities.get_average_rotation(IN_VERSION)
-ESC_KEYS     = [27, 1048603]
+ROTATION     = utils.get_average_rotation(IN_VERSION)
 MAX_NUM_ADD  = 36
 
 # Offsets, some heuristic, some (e.g. the z-coordinate) to avoid damaging the surface.
@@ -90,7 +89,7 @@ def click_and_crop(event, x, y, flags, param):
 
 
 if __name__ == "__main__":
-    arm, _, d = utilities.initializeRobots()
+    arm, _, d = utils.initializeRobots()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
     arm.home()
     arm.close_gripper()
@@ -111,7 +110,7 @@ if __name__ == "__main__":
 
     # Iterate through valid contours from the _left_ camera (we'll simulate right camera).
     for i, (cX, cY, approx, peri) in enumerate(d.left_contours):  
-        if utilities.filter_point(cX,cY, xlower=500, xupper=1500, ylower=50, yupper=1000):
+        if utils.filter_point(cX,cY, xlower=500, xupper=1500, ylower=50, yupper=1000):
             continue
         if num_added == MAX_NUM_ADD:
             break
@@ -123,9 +122,9 @@ if __name__ == "__main__":
         cv2.imshow("Press ESC if this isn't a desired contour (or a duplicate), press any other key to proceed w/robot movement. Note that num_added = {}".format(num_added), image)
         firstkey = cv2.waitKey(0) 
 
-        if firstkey not in ESC_KEYS:
+        if firstkey not in utils.ESC_KEYS:
             # First, determine where the robot will move to based on the pixels.
-            target = utilities.left_pixel_to_robot_prediction(
+            target = utils.left_pixel_to_robot_prediction(
                     left_pt=(cX,cY), 
                     params=params, 
                     better_rf=better_rf,
@@ -161,7 +160,7 @@ if __name__ == "__main__":
             cv2.setMouseCallback(window_name, click_and_crop)
             cv2.imshow(window_name, updated_image_copy)
             key = cv2.waitKey(0)
-            if key in ESC_KEYS:
+            if key in utils.ESC_KEYS:
                 continue
 
             # Now save the image with the next available index. It will contain the contours.
@@ -181,7 +180,7 @@ if __name__ == "__main__":
                        'actual_rot': new_rot,
                        'center_target_pixels': (cX,cY),
                        'center_actual_pixels': CENTER_OF_BOXES[-1]}
-            utilities.storeData(OUTPUT_FILE, data_pt)
+            utils.storeData(OUTPUT_FILE, data_pt)
 
             # Some stats for debugging, etc.
             num_added += 1

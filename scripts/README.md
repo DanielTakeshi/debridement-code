@@ -10,7 +10,7 @@
   - Also, `train_rf.py` (and then `train_rf_make_rf.py`) should ideally make the full pipeline work by getting the data (then training the RF) on my actual data where I correct based on my own data. Then `click_and_crop_v2.py` will test that with the different (but better, in my opinion) method for dealing with random forest residuals.
 
 
-- **Initial Calibration Data Gathering**: `calibrate_onearm.py` is when I do my manual stuff with the DVRK's arms, then:
+- **Initial Calibration Data Gathering**: `calibrate_onearm.py` is when I do my manual stuff with the DVRK's arms. Use `rotations_sandbox.py` to check which rotation to use. Then: 
 
   - `check_calib_points.py` is purely debugging
 
@@ -50,3 +50,5 @@
   ```
 
   - Use `test_color_detection.py` to test if I can detect colors in an image. Unfortunately this is unlikely to work.
+
+  - Use `rotations_sandbox.py` to test with rotations and see what would be good to calibrate.

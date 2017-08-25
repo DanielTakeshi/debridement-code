@@ -30,12 +30,15 @@ import cv2
 import numpy as np
 import pickle
 import sys
-import utilities
+import utilities as utils
 
-# IMPORTANT! CHANGE THESE!
-VERSION  = '10' # 00 for the gripper, 10 for the scissors
+# IMPORTANT! ALWAYS DOUBLE CHECK!
+# Versions: 0X for the gripper, 1X for the scissors.
+# See `utils.get_rotation_from_version()` for details.
+VERSION  = '01' 
+ROTATION = utils.get_rotation_from_version(VERSION)
+HOME_POS = [0.00, 0.06, -0.13]
 IMDIR    = "images/"
-ESC_KEYS = [27, 1048603]
 
 
 def calibrateImage(contours, img, arm1, outfile):
@@ -49,7 +52,7 @@ def calibrateImage(contours, img, arm1, outfile):
     can get a correspondence with left and right images after arranging
     pixels in the correct ordering (though I don't think I have to do that.).
     """
-    arm1.home()
+    utils.move(arm1, HOME_POS, ROTATION, 'Fast')
     arm1.close_gripper()
     print("(after calling `home`) psm1 current position: {}".format(
         arm1.get_current_cartesian_position()))
@@ -57,7 +60,7 @@ def calibrateImage(contours, img, arm1, outfile):
     num_saved = 0
 
     for i, (cX, cY, approx, peri) in enumerate(contours):  
-        if utilities.filter_point(cX, cY, 500, 1500, 75, 1000):
+        if utils.filter_point(cX, cY, 500, 1500, 75, 1000):
             continue
         image = img.copy()
 
@@ -70,7 +73,7 @@ def calibrateImage(contours, img, arm1, outfile):
         cv2.imshow("Contour w/{} saved so far out of {}.".format(num_saved,i), image)
         key1 = cv2.waitKey(0) 
 
-        if key1 not in ESC_KEYS:
+        if key1 not in utils.ESC_KEYS:
             # Get position and orientation of the arm, save, & reset.
             frame = arm1.get_current_cartesian_position()
             pos = tuple(frame.position[:3])
@@ -80,18 +83,18 @@ def calibrateImage(contours, img, arm1, outfile):
             print("contour {}, a1={}".format(i,a1))
         else:
             print("(not storing contour {} on the left)".format(i))
-        arm1.home()
+        utils.move(arm1, HOME_POS, ROTATION, 'Fast')
         arm1.close_gripper()
 
         # Only store this contour if both keys were not escape keys.
-        if key1 not in ESC_KEYS:
-            utilities.storeData(outfile, a1)
+        if key1 not in utils.ESC_KEYS:
+            utils.storeData(outfile, a1)
             num_saved += 1
         cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    arm1, _, d = utilities.initializeRobots()
+    arm1, _, d = utils.initializeRobots()
     arm1.close_gripper()
 
     # Keep this in case I want to debug some images.
@@ -104,8 +107,8 @@ if __name__ == "__main__":
     calibrateImage(contours = d.right_contours, 
                    img = d.right_image, 
                    arm1 = arm1, 
-                   outfile = 'config/calib_circlegrid_right_v'+VERSION+'.p')
+                   outfile = 'config/grid/calib_circlegrid_right_v'+VERSION+'.p')
     calibrateImage(contours = d.left_contours, 
                    img = d.left_image, 
                    arm1 = arm1, 
-                   outfile = 'config/calib_circlegrid_left_v'+VERSION+'.p')
+                   outfile = 'config/grid/calib_circlegrid_left_v'+VERSION+'.p')

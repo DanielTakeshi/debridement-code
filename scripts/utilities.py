@@ -10,6 +10,9 @@ import pickle
 import sys
 np.set_printoptions(suppress=True)
 
+# Because I had this almost everywhere!
+ESC_KEYS = [27, 1048603]
+
 
 def initializeRobots(sleep_time=2):
     """ Because I was using this in almost every script! """
@@ -142,7 +145,11 @@ def get_average_rotation(version):
     I will assume taking the average is close enough, but we should check. The issue is 
     that the data from calibration shows systematic trends, e.g. increasing roll. One
     option is to redo calibration, and after I push the end effector, force it to rotate.
+
+    TODO: Deprecate this method. However, I should use it in case I wnat to inspect the
+    average rotation to ensure that I didn't adjust it too much during human calibration.
     """
+    print("WARNING: this method will be deprecated!!")
     lll = pickle.load(open('config/calib_circlegrid_left_v'+version+'_ONELIST.p', 'r'))
     rrr = pickle.load(open('config/calib_circlegrid_right_v'+version+'_ONELIST.p', 'r'))
     rotations_l = [aa[1] for aa in lll]
@@ -154,6 +161,20 @@ def get_average_rotation(version):
     return ROTATION
 
 
+def get_rotation_from_version(version):
+    """
+    Given a version number from `scripts/calibrate_onearm.py`, we figure out the rotation.
+    Right now this is a lot of trial and error, but there isn't much of an alternative.
+    Replaces the old method of `get_average_rotation`.
+    """
+    if version == '00' or version == '10':
+        return [0, -10, -170]
+    elif version == '01':
+        return [0, 0, -165]
+    else:
+        raise ValueError()
+
+
 def filter_point(x, y, xlower, xupper, ylower, yupper):
     """ 
     Used in case we want to filter out contours that aren't in some area. 
@@ -163,3 +184,31 @@ def filter_point(x, y, xlower, xupper, ylower, yupper):
     if (x < xlower or x > xupper or y < ylower or y > yupper):
         ignore = True
     return ignore
+
+
+def move(arm, pos, rot, SPEED_CLASS):
+    """ Handles the different speeds we're using.
+    
+    Parameters
+    ----------
+    arm: [dvrk arm]
+        The current DVK arm.
+    pos: [list]
+        The desired position.
+    rot: [list]
+        The desired rotation, in list form.
+    SPEED_CLASS: [String]
+        Slow, Medium, or Fast.
+    """
+    if SPEED_CLASS == 'Slow':
+        arm.move_cartesian_frame_linear_interpolation(
+                tfx.pose(pos, tfx.tb_angles(rot[0],rot[1],rot[2])), 0.03
+        )
+    elif SPEED_CLASS == 'Medium':
+        arm.move_cartesian_frame_linear_interpolation(
+                tfx.pose(pos, tfx.tb_angles(rot[0],rot[1],rot[2])), 0.06
+        )
+    elif SPEED_CLASS == 'Fast':
+        arm.move_cartesian_frame(tfx.pose(pos, tfx.tb_angles(rot[0],rot[1],rot[2])))
+    else:
+        raise ValueError()
