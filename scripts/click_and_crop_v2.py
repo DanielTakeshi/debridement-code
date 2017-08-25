@@ -25,6 +25,7 @@ OUT_VERSION  = '11' # for _storing_ stuff, use 99 for debugging, changes often.
 IN_VERSION   = '10' # for _loading_ stuff, generally changes for tool changes.
 
 USE_RF       = True
+BAD_RF       = True # Only set to `True` in RARE cases... must set `USE_RF` True as well.
 OUTPUT_FILE  = 'config/calibration_results/data_v'+OUT_VERSION+'.p'
 IMDIR        = 'images/check_regressors_v'+OUT_VERSION+'/'
 ROTATION     = utilities.get_average_rotation(IN_VERSION)
@@ -131,7 +132,8 @@ if __name__ == "__main__":
                     ARM1_XOFFSET=ARM1_XOFFSET,
                     ARM1_YOFFSET=ARM1_YOFFSET,
                     ARM1_ZOFFSET=ARM1_ZOFFSET,
-                    USE_RF=USE_RF
+                    USE_RF=USE_RF,
+                    bad_rf=BAD_RF
             )
             pos = [target[0], target[1], target[2]]
             rot = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])

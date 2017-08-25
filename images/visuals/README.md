@@ -111,15 +111,15 @@ std:    5.79674172908
 
 ## Version 11
 
-Bad RF.
+Bad RF, actually worse though it's probably in the noise. Reason why its hard for this to work is that the robot thinks the rigid body is already great.
 
 ```
 Distances among the pixels, (x,y) only:
-mean:   4.74117310089
-median: 4.2360679775
-max:    17.4642491966
+mean:   9.03511991963
+median: 8.0622577483
+max:    19.1049731745
 min:    1.0
-std:    2.95224017854
+std:    5.27888321881
 ```
 
 ## Version 12
