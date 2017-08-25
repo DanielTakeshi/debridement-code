@@ -67,7 +67,7 @@ if __name__ == "__main__":
             data.append(pickle.load(FILE_FOR_RF))
         except EOFError:
             break
-    assert len(data) == 36 # For now
+    assert len(data) == 36 or len(data) == 35 # For now
 
     # Remember, the _predicted_ (not the actual) is the _input_ to the RF.
     X_train = [data_pt['original_robot_point_prediction'] for data_pt in data]

@@ -21,15 +21,15 @@ from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 # DOUBLE CHECK, and see `images/README.md` for details.
-OUTVERSION   = '12' # for _storing_ stuff, use 99 for debugging, changes often.
-VERSION      = '10' # for _loading_ stuff, generally changes for tool changes.
+OUT_VERSION  = '11' # for _storing_ stuff, use 99 for debugging, changes often.
+IN_VERSION   = '10' # for _loading_ stuff, generally changes for tool changes.
 
-OUTPUT_FILE  = 'config/calibration_results/data_v'+OUTVERSION+'.p'
-IMDIR        = 'images/check_regressors_v'+OUTVERSION+'/'
-ROTATION     = utilities.get_average_rotation(VERSION)
+USE_RF       = True
+OUTPUT_FILE  = 'config/calibration_results/data_v'+OUT_VERSION+'.p'
+IMDIR        = 'images/check_regressors_v'+OUT_VERSION+'/'
+ROTATION     = utilities.get_average_rotation(IN_VERSION)
 MAX_NUM_ADD  = 36
 ESC_KEYS     = [27, 1048603]
-USE_RF       = True
 
 # Offsets, some heuristic, some (e.g. the z-coordinate) to avoid damaging the surface.
 ARM1_XOFFSET = 0.000
@@ -96,9 +96,9 @@ if __name__ == "__main__":
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
 
     # Do NOT use params[random_forest] but instead use `better_rf`.
-    params = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION+'.p', 'r'))
+    params = pickle.load(open('config/mapping_results/params_matrices_v'+IN_VERSION+'.p', 'r'))
     if USE_RF:
-        better_rf = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION+'.p', 'r'))
+        better_rf = pickle.load(open('config/mapping_results/random_forest_predictor_v'+IN_VERSION+'.p', 'r'))
     else:
         better_rf = None
 

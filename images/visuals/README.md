@@ -115,17 +115,22 @@ Bad RF.
 
 ```
 Distances among the pixels, (x,y) only:
-mean:   7.25458082261
-median: 5.19258240357
-max:    20.3960780544
+mean:   4.74117310089
+median: 4.2360679775
+max:    17.4642491966
 min:    1.0
-std:    5.53864718535
+std:    2.95224017854
 ```
 
 ## Version 12
 
-Good RF.
+Good RF. Niiiice! The only thing it had to do was increase the y coordinate by a millimeter for the last two rows.
 
 ```
-
+Distances among the pixels, (x,y) only:
+mean:   4.17630719943
+median: 4.62132034356
+max:    12.7279220614
+min:    1.0
+std:    2.51166442344
 ```
