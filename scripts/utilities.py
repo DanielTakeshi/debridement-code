@@ -10,8 +10,11 @@ import pickle
 import sys
 np.set_printoptions(suppress=True)
 
-# Because I had this almost everywhere!
-ESC_KEYS = [27, 1048603]
+# Because I had these a lot ...
+ESC_KEYS     = [27, 1048603]
+HOME_POS     = [0.00, 0.06, -0.13]
+C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
+C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
 
 
 def initializeRobots(sleep_time=2):
@@ -112,9 +115,6 @@ def left_pixel_to_robot_prediction(left_pt, params, better_rf,
     A list of 3 elements representing the predicted robot frame. We WILL apply
     the z-offset here for safety reasons.
     """
-    C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
-    C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
-
     leftx, lefty = left_pt
     left_pt_hom = np.array([leftx, lefty, 1.])
     right_pt = left_pt_hom.dot(params['theta_l2r'])
@@ -163,8 +163,8 @@ def get_average_rotation(version):
     average rotation to ensure that I didn't adjust it too much during human calibration.
     """
     print("WARNING: this method will be deprecated!!")
-    lll = pickle.load(open('config/calib_circlegrid_left_v'+version+'_ONELIST.p', 'r'))
-    rrr = pickle.load(open('config/calib_circlegrid_right_v'+version+'_ONELIST.p', 'r'))
+    lll = pickle.load(open('config/grid/calib_circlegrid_left_v'+version+'_ONELIST.p', 'r'))
+    rrr = pickle.load(open('config/grid/calib_circlegrid_right_v'+version+'_ONELIST.p', 'r'))
     rotations_l = [aa[1] for aa in lll]
     rotations_r = [aa[1] for aa in rrr]
     rotations_all = np.array(rotations_l + rotations_r)

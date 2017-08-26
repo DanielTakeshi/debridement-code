@@ -12,17 +12,16 @@ import numpy as np
 import pickle
 import sys
 import time
-import utilities
+import utilities as utils
 np.set_printoptions(suppress=True)
 
 # DOUBLE CHECK ALL THESE!! Especially the version number!
-VERSION      = '10'
-LEFT_POINTS  = pickle.load(open('config/calib_circlegrid_left_v'+VERSION+'_ONELIST.p',  'r'))
-RIGHT_POINTS = pickle.load(open('config/calib_circlegrid_right_v'+VERSION+'_ONELIST.p', 'r'))
+VERSION      = '01' # 0X gripper, 1X scissors.
+LEFT_POINTS  = pickle.load(open('config/grid/calib_circlegrid_left_v'+VERSION+'_ONELIST.p',  'r'))
+RIGHT_POINTS = pickle.load(open('config/grid/calib_circlegrid_right_v'+VERSION+'_ONELIST.p', 'r'))
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
 NUM_POINTS   = len(LEFT_POINTS)
-ESC_KEYS     = [27, 1048603]
 
 
 def debug_1(left, right, points3d):
@@ -344,7 +343,7 @@ if __name__ == "__main__":
     # Get the 3D **camera** points.
     if VERSION == '00':
         assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
-    elif VERSION == '10':
+    elif VERSION == '01' or VERSION == '10':
         assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 35
     left, right, points_3d = pixels_to_3d()
     debug_1(left, right, points_3d)
