@@ -69,10 +69,14 @@ def detect_color_hsv(frame):
     upper = np.array([180, 255, 255])
 
     # Convert from RGB (not BGR) to hsv and apply our chosen thresholding.
-    hsv  = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
-    mask = cv2.inRange(hsv, lower, upper)
+    frame = cv2.bilateralFilter(frame, 7, 13, 13)
+    utilities.call_wait_key(cv2.imshow("After first filter", frame))
+    frame = cv2.medianBlur(frame, 9)
+    utilities.call_wait_key(cv2.imshow("After second filter", frame))
+    hsv   = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+    mask  = cv2.inRange(hsv, lower, upper)
     utilities.call_wait_key(cv2.imshow("Does the mask make sense?", mask))
-    res  = cv2.bitwise_and(frame, frame, mask=mask)
+    res   = cv2.bitwise_and(frame, frame, mask=mask)
 
     # Let's inspect the output and pray it works.
     utilities.call_wait_key(cv2.imshow("Does it detect the desired color?", res))

@@ -162,7 +162,6 @@ if __name__ == "__main__":
     arm.home()
     arm.close_gripper()
     print("arm home: {}".format(arm.get_current_cartesian_position()))
-    utilities.show_images(d)
 
     # Test with angles. NOTE: no need to have yaw be outside [-89.9, 90].
     #rotations = [
@@ -178,14 +177,21 @@ if __name__ == "__main__":
     #        (-180, -12, -170)
     #]
     rotations = [
-            (90, 0, -165),
-            (90, 0, -165),
-            (90, 0, -165),
-            (90, 0, -165),
-            (90, 0, -165),
-            (90, 0, -165),
-            (90, 0, -165),
-            (90, 0, -165)
+            (90, 0, -180),
+            (90, 0, -170),
+            (90, 0, -160),
+            (90, 0, -150),
+            (90, 0, 180),
+            (90, 0, 170),
+            (90, 0, 160),
+            (90, 0, 150),
     ]
 
-    motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
+    #utilities.show_images(d)
+    #motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
+
+    # Test which rotations make sense.
+    for rot in rotations:
+        print("we are moving to rot {}".format(rot))
+        utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
+        time.sleep(3)
