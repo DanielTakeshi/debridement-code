@@ -209,7 +209,7 @@ def move(arm, pos, rot, SPEED_CLASS):
     pos: [list]
         The desired position.
     rot: [list]
-        The desired rotation, in list form.
+        The desired rotation, in list form with yaw, pitch, and roll.
     SPEED_CLASS: [String]
         Slow, Medium, or Fast.
     """
@@ -225,3 +225,15 @@ def move(arm, pos, rot, SPEED_CLASS):
         arm.move_cartesian_frame(tfx.pose(pos, tfx.tb_angles(rot[0],rot[1],rot[2])))
     else:
         raise ValueError()
+
+
+def lists_of_pos_rot_from_frame(frame):
+    """
+    It's annoying to have to do this every time. I just want two lists, darn it!
+    To be clear, `frame = arm.get_current_cartesian_position()`.
+    """
+    pos  = np.squeeze(np.array(frame.position[:3])).tolist()
+    rott = tfx.tb_angles(frame.rotation)
+    rot  = [rott.yaw_deg, rott.pitch_deg, rott.roll_deg]
+    assert len(pos) == len(rot) == 3
+    return pos, rot

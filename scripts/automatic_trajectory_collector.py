@@ -30,16 +30,19 @@ class AutoTrajCollector:
         self.d = args['d']
         self.arm = args['arm']
         self.num_trajs = args['num_trajs']
-        self.info = pickle.load( open(args['guidelines_dir'], 'r') )
         self.rots_per_stoppage = args['rots_per_stoppage']
-        self.z_alpha = args['z_alpha']
-        self.z_beta  = args['z_beta']
-        self.z_gamma = args['z_gamma']
+        self.z_offset = args['z_offset']
+        self.interpolation_interval = args['interpolation_interval']
+
+        self.info = pickle.load( open(args['guidelines_dir'], 'r') )
+        self.z_alpha = self.info['z_alpha']
+        self.z_beta  = self.info['z_beta']
+        self.z_gamma = self.info['z_gamma']
 
 
     def _get_z_from_xy_values(self, x, y):
         """ We fit a plane. """
-        return (self.z_alpha*x) + (self.z_beta*y) + self.z_gamma
+        return (self.z_alpha * x) + (self.z_beta * y) + self.z_gamma
 
     
     def _get_thresholded_image(self, image):
@@ -49,19 +52,15 @@ class AutoTrajCollector:
         later, which should detect the center of the largest contour and deduce that
         as the approximate location of the end-effector.
 
-        We assume the color target is red, FYI.
+        We assume the color target is red, FYI, and that it's RGB->HSV, not BGR->HSV.
         """
-        ##lower = np.array([110, 90, 90])
-        ##upper = np.array([180, 255, 255])
-        ### Convert from RGB (not BGR) to hsv and apply our chosen thresholding.
-        ##hsv  = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
-        ##mask = cv2.inRange(hsv, lower, upper)
-        ##utils.call_wait_key(cv2.imshow("Does the mask make sense?", mask))
-        ##res  = cv2.bitwise_and(frame, frame, mask=mask)
-        ### Let's inspect the output and pray it works.
-        ##utils.call_wait_key(cv2.imshow("Does it detect the desired color?", res))
-        ##return res
-        pass
+        # TODO we need extra stuff here, e.g. median blur and stuff, to reduce noise.
+        lower = np.array([110, 90, 90])
+        upper = np.array([180, 255, 255])
+        hsv   = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        mask  = cv2.inRange(hsv, lower, upper)
+        res   = cv2.bitwise_and(image, image, mask=mask)
+        return res
 
 
     def collect_trajectories(self):
@@ -81,51 +80,84 @@ class AutoTrajCollector:
         """
         traj_dirs = [x for x in os.listdir('traj_collector') if 'traj' in x]
         traj_index = len(traj_dirs)
-        print("Our starting index is {}".format(traj_index))
+        print("\nNow collecting trajectories. Starting index: {}\n".format(traj_index))
         
         for traj in range(self.num_trajs):
             this_dir = 'traj_collector/traj_'+str(traj_index).zfill(4)+'/'
-            num_pos_in_traj = 0
+            os.makedirs(this_dir)
+            os.makedirs(this_dir+'left/')
+            os.makedirs(this_dir+'right/')
+            os.makedirs(this_dir+'left_th')
+            os.makedirs(this_dir+'right_th/')
+            intervals_in_traj = 0
 
             # Pick a safe target position. 
             # TODO figure out how to spread this more evenly across the workspace
-            xx = np.random.uniform(low=info['min_x'], high=info['max_x'])
-            yy = np.random.uniform(low=info['min_y'], high=info['max_y'])
+            xx = np.random.uniform(low=self.info['min_x'], high=self.info['max_x'])
+            yy = np.random.uniform(low=self.info['min_y'], high=self.info['max_y'])
             zz = self._get_z_from_xy_values(xx, yy)
-            target_position = [xx, yy, zz]
+            target_position = [xx, yy, zz + self.z_offset] 
+            print("Trajectory {}, target position: {}".format(traj, target_position))
 
-            # TODO figure out how to stop the trajectory at time steps
-            for pos in positions:
+            # ------------------------------------------------------------------
+            # Mostly following the `linear_interpolation` movement code.
+            interval   = 0.0001
+            start_vect = self.arm.get_current_cartesian_position()
 
+            # Get a list with the yaw, pitch, and roll from the _starting_ position.
+            _, current_rot = utils.lists_of_pos_rot_from_frame(start_vect)
+
+            # If calling movement code, `end_vect` would be the input "tfx frame."
+            end_vect     = tfx.pose(target_position, tfx.tb_angles(*current_rot))
+            displacement = np.array(end_vect.position - start_vect.position)    
+
+            # Total interval present between start and end poses
+            tinterval = max(int(np.linalg.norm(displacement)/ interval), 50)    
+            print("Number of intervals: {}".format(tinterval))
+
+            for ii in range(0, tinterval, self.interpolation_interval):
+                # SLERP interpolation from tfx function (from `dvrk/robot.py`).
+                mid_pose = start_vect.interpolate(end_vect, (ii+1.0)/ tinterval)   
+                arm.move_cartesian_frame(mid_pose, interpolate=True)
+                print("interval {} of {}, mid_pose: {}".format(ii+1,tinterval,mid_pose))
+
+                # --------------------------------------------------------------
+                # Back to my own stuff, assuming that the arm is at `mid_pose`.
                 frame = self.arm.get_current_cartesian_position()
-                this_position = frame.position[:3]
-                this_rotation = frame.rotation
-                utils.move(arm=self.arm, pos=this_position, rot=this_rotation, SPEED_CLASS='Slow')
+                this_pos, this_rot = utils.lists_of_pos_rot_from_frame(frame)
+                utils.move(arm=self.arm, pos=this_pos, rot=this_rot, SPEED_CLASS='Slow')
+                time.sleep(3)
 
                 # After moving there (keeping rotation fixed) we save the images.
-                cv2.imwrite(this_dir+num+'_rot'+rr+'_left.jpg',     self.d.left_image)
-                cv2.imwrite(this_dir+num+'_rot'+rr+'_right.jpg',    self.d.right_image)
-                cv2.imwrite(this_dir+num+'_rot'+rr+'_left_th.jpg',  left_thresholded)
-                cv2.imwrite(this_dir+num+'_rot'+rr+'_right_th.jpg', right_thresholded)
+                num = str(intervals_in_traj).zfill(3)
+                left_thresholded  = self._get_thresholded_image(self.d.left_image.copy())
+                right_thresholded = self._get_thresholded_image(self.d.right_image.copy())
+                cv2.imwrite(this_dir+'left/'+num+'_rot0_left.jpg',        self.d.left_image)
+                cv2.imwrite(this_dir+'right/'+num+'_rot0_right.jpg',      self.d.right_image)
+                cv2.imwrite(this_dir+'left_th/'+num+'_rot0_left_th.jpg',  left_thresholded)
+                cv2.imwrite(this_dir+'right_th/'+num+'_rot0_right_th.jpg', right_thresholded)
            
-                for rr in range(self.rots_per_stoppage):
+                for rr in range(1, self.rots_per_stoppage+1):
                     # Pick a random rotation and move there.
-                    yaw   = np.random.uniform(low=info['min_yaw'],   high=info['max_yaw'])
-                    pitch = np.random.uniform(low=info['min_pitch'], high=info['max_pitch'])
-                    roll  = np.random.uniform(low=info['min_roll'],  high=info['max_roll'])
-                    rotation = [yaw, pitch, roll]
-                    utils.move(arm=self.arm, pos=this_position, rot=rotation, SPEED_CLASS='Slow')
+                    yaw   = np.random.uniform(low=self.info['min_yaw'],   high=self.info['max_yaw'])
+                    pitch = np.random.uniform(low=self.info['min_pitch'], high=self.info['max_pitch'])
+                    roll  = np.random.uniform(low=self.info['min_roll'],  high=self.info['max_roll'])
+                    random_rotation = [yaw, pitch, roll]
+                    utils.move(arm=self.arm, pos=this_pos, rot=random_rotation, SPEED_CLASS='Slow')
+                    time.sleep(3)
 
                     # Save the left and right camera views (and the _thresholded_ ones).
+                    rr = str(rr)
                     left_thresholded  = self._get_thresholded_image(self.d.left_image.copy())
                     right_thresholded = self._get_thresholded_image(self.d.right_image.copy())
-                    num = str(num_pos_in_traj).zfill(2)
-                    cv2.imwrite(this_dir+num+'_rot'+rr+'_left.jpg',     self.d.left_image)
-                    cv2.imwrite(this_dir+num+'_rot'+rr+'_right.jpg',    self.d.right_image)
-                    cv2.imwrite(this_dir+num+'_rot'+rr+'_left_th.jpg',  left_thresholded)
-                    cv2.imwrite(this_dir+num+'_rot'+rr+'_right_th.jpg', right_thresholded)
+                    cv2.imwrite(this_dir+'left/'+num+'_rot'+rr+'_left.jpg',         self.d.left_image)
+                    cv2.imwrite(this_dir+'right/'+num+'_rot'+rr+'_right.jpg',       self.d.right_image)
+                    cv2.imwrite(this_dir+'left_th/'+num+'_rot'+rr+'_left_th.jpg',   left_thresholded)
+                    cv2.imwrite(this_dir+'right_th/'+num+'_rot'+rr+'_right_th.jpg', right_thresholded)
 
-                num_pos_in_traj += 1
+                # Back to the original rotation; I think this will make it work better.
+                utils.move(arm=self.arm, pos=this_pos, rot=this_rot, SPEED_CLASS='Slow')
+                intervals_in_traj += 1
 
             traj_index += 1
 
@@ -226,7 +258,9 @@ if __name__ == "__main__":
         args['arm'] = arm
         args['guidelines_dir'] = directory
         args['num_trajs'] = 1
-        args['rots_per_stoppage'] = 1
+        args['rots_per_stoppage'] = 0
+        args['z_offset'] = 0.001
+        args['interpolation_interval'] = 20
 
         # Build the ATC and then collect trajectories!
         ATC = AutoTrajCollector(args)
