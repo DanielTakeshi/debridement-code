@@ -162,7 +162,7 @@ def get_average_rotation(version):
     TODO: Deprecate this method. However, I should use it in case I wnat to inspect the
     average rotation to ensure that I didn't adjust it too much during human calibration.
     """
-    print("WARNING: this method will be deprecated!!")
+    print("WARNING: this method (get_average_rotation) will be deprecated!!")
     lll = pickle.load(open('config/grid/calib_circlegrid_left_v'+version+'_ONELIST.p', 'r'))
     rrr = pickle.load(open('config/grid/calib_circlegrid_right_v'+version+'_ONELIST.p', 'r'))
     rotations_l = [aa[1] for aa in lll]

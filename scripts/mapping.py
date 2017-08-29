@@ -3,6 +3,8 @@ Does the entire mapping pipeline. Saves stuff in ONE dictionary w/parameters. Ca
 handle both the manual and automatic calibration steps. I use argparse here so that 
 I remember which settings to use and don't mistakenly use an outdated configuration.
 
+Note that with the automatic collection, I should be dealing with rotations.
+
 (c) September 2017 by Daniel Seita 
 """
 
@@ -375,12 +377,13 @@ if __name__ == "__main__":
     # -----------------------------------------------------------------------------
     robot_3d = []  # Contains *averaged* true values from my manual movement of the arm.
     for (pt1, pt2) in zip(LEFT_POINTS, RIGHT_POINTS):
-        pos_l, _, _, _ = pt1
-        pos_r, _, _, _ = pt2
+        pos_l, rot_l, _, _ = pt1
+        pos_r, rot_r, _, _ = pt2
         pos_l = np.squeeze(np.array(pos_l))
         pos_r = np.squeeze(np.array(pos_r))
         if args.collection == 'auto':
             assert np.allclose(pos_l, pos_r)
+            assert np.allclose(rot_l, rot_r)
         robot_3d.append( (pos_l+pos_r) / 2. ) # We have two measurements per point.
     robot_3d = np.array(robot_3d)
 

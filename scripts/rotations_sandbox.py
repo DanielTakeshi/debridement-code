@@ -43,13 +43,13 @@ ESC_KEYS = [27, 1048603]
 
 # Adjust carefully!!
 CLOSE_ANGLE    = 25      # I think 25 is good for pumpkin, 10 for sunflower.
-TOPK_CONTOURS  = 8       # I usually do 8, for 8 seeds.
+TOPK_CONTOURS  = 9       # I usually do 8, for 8 seeds.
 INTERPOLATE    = True    # We thought `False` would be faster but alas it doesn't even go to the locations.
-SPEED_CLASS    = 'Slow'  # See `measure_speeds.py` for details.
+SPEED_CLASS    = 'Fast'  # See `measure_speeds.py` for details.
 
 # Loading stuff.
 RF_REGRESSOR = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION_INPUT+'.p', 'r'))
-PARAMETERS   = pickle.load(open('config/mapping_results/params_matrices_v'+VERSION_INPUT+'.p', 'r'))
+PARAMETERS   = pickle.load(open('config/mapping_results/manual_params_matrices_v'+VERSION_INPUT+'.p', 'r'))
 
 # Rotations and positions.
 # [   0.07827103  -12.19706825 -169.63700296]
@@ -176,22 +176,12 @@ if __name__ == "__main__":
     #        (-45, -12, -170),
     #        (-180, -12, -170)
     #]
-    rotations = [
-            (90, 0, -180),
-            (90, 0, -170),
-            (90, 0, -160),
-            (90, 0, -150),
-            (90, 0, 180),
-            (90, 0, 170),
-            (90, 0, 160),
-            (90, 0, 150),
-    ]
+    rotations = [ (-90, 10, -170) for i in range(9)]
+    utilities.show_images(d)
+    motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
 
-    #utilities.show_images(d)
-    #motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
-
-    # Test which rotations make sense.
-    for rot in rotations:
-        print("we are moving to rot {}".format(rot))
-        utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
-        time.sleep(3)
+    ## Test which rotations make sense.
+    #for rot in rotations:
+    #    print("we are moving to rot {}".format(rot))
+    #    utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
+    #    time.sleep(3)

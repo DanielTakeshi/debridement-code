@@ -43,7 +43,7 @@ class DataCollector:
 
         # To get a bounding box of points, to filter away any nonsense.
         # For the initial open loop policy for the tissues that Steve gave me.
-        self.lx, self.ly, self.lw, self.lh = 625, 40, 850, 820        
+        self.lx, self.ly, self.lw, self.lh = 625, 40, 850, 800        
         self.rx, self.ry, self.rw, self.rh = 550, 40, 850, 820
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
@@ -93,7 +93,12 @@ class DataCollector:
         self.left_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
         self.left_image_proc = IMAGE_PREPROCESSING_DEFAULT(self.left_image)
         self.left_image_gray = IMAGE_PREPROCESSING_DEFAULT(self.left_image, grayscale_only=True)
-        self.left_image_bbox = self.make_bounding_box(self.left_image_gray.copy(), x,y,w,h)
+
+        # Some experimentation.
+        self.tmp = cv2.medianBlur(self.left_image.copy(), 9)
+        self.tmp = cv2.cvtColor(self.tmp, cv2.COLOR_BGR2GRAY)
+        self.tmp = cv2.bilateralFilter(self.tmp, 7, 13, 13)
+        self.left_image_bbox = self.make_bounding_box(self.tmp, x,y,w,h)
 
         self.left_contours = self.get_contours(self.left_image_proc, self.left_apply_bbox)
         self.left_contours_by_size = self.get_contours_by_size(self.left_image_proc, 
@@ -113,7 +118,9 @@ class DataCollector:
         self.right_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
         self.right_image_proc = IMAGE_PREPROCESSING_DEFAULT(self.right_image)
         self.right_image_gray = IMAGE_PREPROCESSING_DEFAULT(self.right_image, grayscale_only=True)
-        self.right_image_bbox = self.make_bounding_box(self.right_image_gray.copy(), x,y,w,h)
+        self.right_image_bbox = self.make_bounding_box(
+                cv2.medianBlur(self.right_image_gray.copy(), 9), 
+                x,y,w,h)
 
         self.right_contours = self.get_contours(self.right_image_proc, self.right_apply_bbox)
         self.right_contours_by_size = self.get_contours_by_size(self.right_image_proc, 
