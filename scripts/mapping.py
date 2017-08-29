@@ -8,8 +8,10 @@ Note that with the automatic collection, I should be dealing with rotations.
 (c) September 2017 by Daniel Seita 
 """
 
-from dvrk.robot import *
 from autolab.data_collector import DataCollector
+from dvrk.robot import *
+from keras.models import Sequential
+from keras.layers import Dense, Activation
 from geometry_msgs.msg import PointStamped, Point
 from sklearn.ensemble import RandomForestRegressor
 import argparse
@@ -21,9 +23,40 @@ import sys
 import time
 import utilities as utils
 np.set_printoptions(suppress=True)
-
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
+
+
+def train_network(X_train, Y_train):
+    """ 
+    Trains a network to predict f(cx,cy,cz,yaw) = (rx,ry,rz). Here, `X_train` is 
+    ALREADY normalized. X_train has shape (N,4), Y_train has shape (N,3). Thus, for
+    keras, we use `input_dim = 4` since that is not including the batch size.
+
+    During prediction and test-time applications, don't forget to normalize!!!!!
+
+    Shuffle the data beforehand, since Keras will take the last % of the input data
+    we pass as the fixed, held-out validation set.
+
+    https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model
+    """
+    shuffle = np.random.permutation(X_train.shape[0])
+    X_train = X_train[shuffle]
+    Y_train = Y_train[shuffle]
+
+    epochs = 50
+    batch_size = 32
+
+    model = Sequential()
+    model.add(Dense(50, activation='relu', input_dim=4))
+    model.add(Dense(50, activation='relu'))
+    model.add(Dense(3,  activation=None))
+    model.compile(optimizer='adam', loss='mse')
+    model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, validation_split=0.2)
+
+    modeldir = 'config/keras_results/simple_{}epochs.h5'.format(epochs)
+    model.save(modeldir)
+    return modeldir
 
 
 def debug_1(left, right, points3d, LEFT_POINTS, RIGHT_POINTS):
@@ -31,9 +64,9 @@ def debug_1(left, right, points3d, LEFT_POINTS, RIGHT_POINTS):
     print("robot points in left/right camera (we'll average later):")
     for i,(pt1,pt2) in enumerate(zip(LEFT_POINTS, RIGHT_POINTS)):
         print(i,np.squeeze(pt1[0]),np.squeeze(pt2[0]))
-    print("pixel pts in left/right camera:")
-    for i,(pt1,pt2) in enumerate(zip(left, right)):
-        print(i,pt1,pt2)
+    #print("pixel pts in left/right camera:")
+    #for i,(pt1,pt2) in enumerate(zip(left, right)):
+    #    print(i,pt1,pt2)
     print("camera points:")
     for i,item in enumerate(points_3d):
         print(i,np.squeeze(item))
@@ -41,43 +74,31 @@ def debug_1(left, right, points3d, LEFT_POINTS, RIGHT_POINTS):
     print("End of debug prints.\n")
 
 
-def convertStereo(u, v, disparity, info):
-    """ 
-    Converts two pixel coordinates u and v with the disparity to give PointStamped.
-    https://github.com/BerkeleyAutomation/endoscope_calibration/blob/master/rigid_transformation.py
-    Hmm ... after looking at this, I really only need the (x,y,z), right?
-    """
-    stereoModel = image_geometry.StereoCameraModel()
-    stereoModel.fromCameraInfo(info['l'], info['r'])
-    (x,y,z) = stereoModel.projectPixelTo3d((u,v), disparity)
-    cameraPoint = PointStamped()
-    cameraPoint.header.frame_id = info['l'].header.frame_id
-    cameraPoint.header.stamp = time.time()
-    cameraPoint.point = Point(x,y,z)
-    return cameraPoint
-
-
 def get_points_3d(left_points, right_points, info):
     """ 
     Assumes that corresponding (2-D pixel) points are ordered correctly 
-    in `left_points` and `right_points`. Returns a list of 3D camera points.
+    in `left_points` and `right_points`. Returns a numpy array of 3D camera points.
     https://github.com/BerkeleyAutomation/endoscope_calibration/blob/master/rigid_transformation.py
     """
+    stereoModel = image_geometry.StereoCameraModel()
+    stereoModel.fromCameraInfo(info['l'], info['r'])
     points_3d = []
+
     for i in range(len(left_points)):
         a = left_points[i]
         b = right_points[i]
         disparity = np.sqrt((a[0]-b[0]) ** 2 + (a[1]-b[1]) ** 2)
         assert disparity == np.linalg.norm(np.array(a)-np.array(b))
-        pt = convertStereo(a[0], a[1], disparity, info)
-        points_3d.append(pt)
-    return points_3d
+        (x,y,z) = stereoModel.projectPixelTo3d((a[0],a[1]), disparity)
+        points_3d.append( [x,y,z] )
+
+    return np.array(points_3d)
 
 
 def pixels_to_3d(LEFT_POINTS, RIGHT_POINTS):
     """ 
-    Call this to start the process of getting camera points from pixels. 
-    FYI, I explicitly extract the pixels from my points since they have more info.
+    Call this to start the process of getting camera points from pixels. FYI, I
+    explicitly extract the pixels from `{LEFT,RIGHT}_POINTS` since they have more info.
     """
     left = []
     right = []
@@ -90,8 +111,7 @@ def pixels_to_3d(LEFT_POINTS, RIGHT_POINTS):
         left.append((lx,ly))
         right.append((rx,ry))
 
-    pts3d = get_points_3d(left, right, info)
-    pts3d_array = np.asarray(np.matrix([(p.point.x, p.point.y, p.point.z) for p in pts3d]))
+    pts3d_array = get_points_3d(left, right, info)
     return (left, right, pts3d_array)
 
 
@@ -371,26 +391,55 @@ if __name__ == "__main__":
     left, right, points_3d = pixels_to_3d(LEFT_POINTS, RIGHT_POINTS)
     debug_1(left, right, points_3d, LEFT_POINTS, RIGHT_POINTS)
 
+    # ---------------------------------------------------------------------------
+    # Gather data needed for future transformations, particulary robot points and
+    # (for the auto collection) the rotations, for better calibration.
     # -----------------------------------------------------------------------------
-    # Solve rigid transform. Average out the robot points (they should be similar).
-    # Again this isn't technically needed for the auto data collection but w/e.
-    # -----------------------------------------------------------------------------
-    robot_3d = []  # Contains *averaged* true values from my manual movement of the arm.
+    robot_3d = []
+    rotations_3d = []
+
     for (pt1, pt2) in zip(LEFT_POINTS, RIGHT_POINTS):
         pos_l, rot_l, _, _ = pt1
         pos_r, rot_r, _, _ = pt2
         pos_l = np.squeeze(np.array(pos_l))
         pos_r = np.squeeze(np.array(pos_r))
+
         if args.collection == 'auto':
             assert np.allclose(pos_l, pos_r)
             assert np.allclose(rot_l, rot_r)
-        robot_3d.append( (pos_l+pos_r) / 2. ) # We have two measurements per point.
-    robot_3d = np.array(robot_3d)
+            robot_3d.append(pos_l)
+            rotations_3d.append(rot_l)
+        elif args.collection == 'manual':
+            # We have two measurements per point.
+            robot_3d.append( (pos_l+pos_r) / 2. ) 
 
-    rigid_body_matrix, residuals_mapping = solve_rigid_transform(
-            camera_points_3d=points_3d,
-            robot_points_3d=robot_3d,
-            debug=True)
+    robot_3d = np.array(robot_3d)
+    rotations_3d = np.array(rotations_3d)
+    assert robot_3d.shape[1] == 3 and rotations_3d.shape[1] == 3
+    assert len(robot_3d.shape) == 2 and len(rotations_3d.shape) == 2
+
+    # -------------------------------------
+    # For manual, get rigid body transform.
+    # -------------------------------------
+    if args.collection == 'manual':
+        rigid_body_matrix, residuals_mapping = solve_rigid_transform(
+                camera_points_3d=points_3d,
+                robot_points_3d=robot_3d,
+                debug=True)
+
+    # --------------------------------------------------
+    # For auto, get lots of stuff, e.g. deep networks.
+    # For the rotations, keep only the 0th column (yaw).
+    # --------------------------------------------------
+    if args.collection == 'auto':
+        X_train = np.concatenate((points_3d, rotations_3d[:,0,np.newaxis]), axis=1) # (N,4)
+        X_mean  = np.mean(X_train, axis=0)
+        X_std   = np.mean(X_train, axis=0)
+        y_train = robot_3d.copy() # (N,3)
+        assert X_train.shape[1] == 4 and y_train.shape[1] == 3 and X_train.shape[0] == y_train.shape[0]
+        assert len(X_std) == len(X_mean) == 4
+        X_train = (X_train - X_mean) / X_std
+        modeldir = train_network(X_train, y_train)
 
     # -----------------------------------------------------------------------------------
     # Develop correspondence between left and right camera pixels. I assume in real
@@ -405,17 +454,22 @@ if __name__ == "__main__":
     # Save various matrices in one dictionary. 
     # ----------------------------------------
     params = {}
-    params['RB_matrix'] = rigid_body_matrix
-    params['rf_residuals'] = residuals_mapping
     params['theta_l2r'] = theta_l2r
     params['theta_r2l'] = theta_r2l
+
     if args.collection == 'auto':
+        params['X_mean'] = X_mean
+        params['X_std']  = X_std
+        params['modeldir'] = modeldir
         pickle.dump(params, open('config/mapping_results/auto_params_matrices_v'+VERSION+'.p', 'w'))
+
     elif args.collection == 'manual':
+        params['RB_matrix'] = rigid_body_matrix
+        params['rf_residuals'] = residuals_mapping
         pickle.dump(params, open('config/mapping_results/manual_params_matrices_v'+VERSION+'.p', 'w'))
 
     # -----------------------------------------------------------------------------
     # Let's see what happens if we _pretend_ we ignore the right camera's pixels.
     # Given the left camera's pixels, see if we can accurately predict robot frame.
     # -----------------------------------------------------------------------------
-    left_pixel_to_robot_prediction(left, params, robot_3d)
+    #left_pixel_to_robot_prediction(left, params, robot_3d)

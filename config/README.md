@@ -11,6 +11,8 @@ I'll just be using one version, 00, since I can't imagine running this many time
 
 The data format should be the SAME as the manual stuff, i.e. there should be one list in the pickle file with the stuff, except it's not 36 points but MANY MORE points. And it will have already been cleaned up. :-)
 
+- Use `keras_results` to store the networks from the `mapping.py` with the automatic setting on.
+
 
 ## Manual, Human Calibration Data 
 
