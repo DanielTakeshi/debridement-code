@@ -2,6 +2,8 @@
 Run this after running the automatic trajectory collector. This gets the data 
 in the format I need for my old code. I need this separate for data cleaning, etc.
 
+PS: run this with a `tee` into the `traj_collector` dataset for extra debugging.
+
 (c) September 2017 by Daniel Seita
 """
 
@@ -74,9 +76,20 @@ def filter_points_in_results(camera_map, directory):
 def process_data(clean_data):
     """ Processes the filtered, cleaned data into something I can use in my old code.
 
-    TODO
+    I generated my original calibration data from `scripts/calibrate_onearm.py`. This gets
+    passed to `scripts/mapping.py`. Thus, just make the data here as I did in the former
+    script. This means having TWO LISTS (remember, I used one list even though the code
+    doesn't save it that way ... confusing, I know), with elements (pos, rot, cX, cY), ONE
+    PER CAMERA. Yes, make two separate lists.
     """
-    pass
+    l_list = []
+    r_list = []
+    for i,val in enumerate(clean_data):
+        frame, l_center, r_center = val
+        pos, rot = utils.lists_of_pos_rot_from_frame(frame)
+        l_list.append( (pos, rot, l_center[0], l_center[1]) )
+        r_list.append( (pos, rot, r_center[0], r_center[1]) )
+    return l_list, r_list
 
 
 if __name__ == "__main__":
@@ -92,5 +105,6 @@ if __name__ == "__main__":
     directory = 'traj_collector/'
 
     clean_data = filter_points_in_results(params['theta_l2r'], directory)
-    #proc_data = process_data(clean_data)
-    #pickle.dump(proc_data, open('', 'w'))
+    proc_left, proc_right = process_data(clean_data)
+    pickle.dump(proc_left,  open('config/grid_auto/auto_calib_left_00.p', 'w'))
+    pickle.dump(proc_right, open('config/grid_auto/auto_calib_right_00.p', 'w'))

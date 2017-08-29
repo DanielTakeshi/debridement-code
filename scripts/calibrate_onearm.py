@@ -92,10 +92,7 @@ def calibrateImage(contours, img, arm1, outfile):
             key2 = cv2.waitKey(0) 
 
             # Get position and orientation of the arm, save, & reset.
-            frame = arm1.get_current_cartesian_position()
-            pos = tuple(frame.position[:3])
-            rot = tfx.tb_angles(frame.rotation)
-            rot = (rot.yaw_deg, rot.pitch_deg, rot.roll_deg)
+            pos, rot = utils.lists_of_pos_rot_from_frame( arm1.get_current_cartesian_position() )
             a1 = (pos, rot, cX, cY)
             print("contour {}, a1={}".format(i,a1))
         else:

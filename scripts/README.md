@@ -15,6 +15,8 @@
 
 ## Data Collection for Calibration
 
+This calibration data is stored in the `icra2018/config` directory. See the README file there for details.
+
 - **Initial Calibration Data Gathering**: `calibrate_onearm.py` is when I do my manual stuff with the DVRK's arms. Use `rotations_sandbox.py` to check which rotation to use. Then: 
 
   - `check_calib_points.py` is purely debugging
