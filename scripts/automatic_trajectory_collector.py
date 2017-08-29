@@ -32,6 +32,7 @@ class AutoTrajCollector:
         self.num_trajs = args['num_trajs']
         self.rots_per_stoppage = args['rots_per_stoppage']
         self.interpolation_interval = args['interpolation_interval']
+        self.require_negative_roll = args['require_negative_roll']
 
         self.info = pickle.load( open(args['guidelines_dir'], 'r') )
         self.z_alpha = self.info['z_alpha']
@@ -147,12 +148,46 @@ class AutoTrajCollector:
             return image_bgr, (-1,-1) 
 
 
+    def _sample_yaw(self, old_yaw=None):
+        """ Samples a valid yaw. """
+        yaw = np.random.uniform(low=self.info['min_yaw'], high=self.info['max_yaw'])
+        if old_yaw is not None:
+            while (np.abs(yaw-old_yaw) > 150): # Prevents large extremes
+                yaw = np.random.uniform(low=self.info['min_yaw'], high=self.info['max_yaw'])
+        return yaw
+
+
+    def _sample_pitch(self):
+        """ Samples a valid pitch. """
+        return np.random.uniform(low=self.info['min_pitch'], high=self.info['max_pitch'])
+
+
+    def _sample_roll(self):
+        """ Samples a valid roll. """
+        if self.require_negative_roll:
+            roll = np.random.uniform(low=self.info['min_roll'], high=self.info['max_roll']) 
+        else:
+            roll = np.random.uniform(low=-180, high=180) 
+            while (self.info['roll_neg_ubound'] < roll < self.info['roll_pos_lbound']):
+                roll = np.random.uniform(low=-180, high=180) 
+        return roll
+
+
     def _move_to_random_home_position(self):
-        """ Moves to one of the home positions we have set up. """
+        """ Moves to one of the home positions we have set up. 
+        
+        One change: I adjust the angles to be in line with what we have. The reason is
+        that we'll keep referring back to this angle when we move, and I want it to be
+        inside the actual ranges of yaw, pitch, and roll we're considering. Hence, the
+        `better_rotation` that's here.
+        """
         pose = self.home_pos_list[ np.random.randint(len(self.home_pos_list)) ]
         home_pos, home_rot = utils.lists_of_pos_rot_from_frame(pose)
         home_pos[2] += self.z_offset_home
         utils.move(arm=self.arm, pos=home_pos, rot=home_rot, SPEED_CLASS='Slow')
+
+        better_rotation = [self._sample_yaw(), self._sample_pitch(), self._sample_roll()]
+        utils.move(arm=self.arm, pos=home_pos, rot=better_rotation, SPEED_CLASS='Slow')
 
 
     def _save_images(self, this_dir, num, rr):
@@ -166,7 +201,6 @@ class AutoTrajCollector:
         cv2.imwrite(this_dir+'right/'+num+'_rot'+rr+'_right.jpg',       self.d.right_image)
         cv2.imwrite(this_dir+'left_th/'+num+'_rot'+rr+'_left_th.jpg',   left_th)
         cv2.imwrite(this_dir+'right_th/'+num+'_rot'+rr+'_right_th.jpg', right_th)
-
         return l_center, r_center
 
 
@@ -190,7 +224,7 @@ class AutoTrajCollector:
         
         for traj in range(self.num_trajs):
 
-            # Get directories/stats set up, and move to a random home position.
+            # Get directories/stats set up, and move to a random home position w/correct angles.
             this_dir = 'traj_collector/traj_'+str(traj_index).zfill(4)+'/'
             os.makedirs(this_dir)
             os.makedirs(this_dir+'left/')
@@ -244,24 +278,17 @@ class AutoTrajCollector:
                 traj_poses.append( (frame,l_center,r_center) )
            
                 for rr in range(1, self.rots_per_stoppage+1):
-                    # Pick a random rotation and move there.
-                    yaw   = np.random.uniform(low=self.info['min_yaw'],   high=self.info['max_yaw'])
-                    pitch = np.random.uniform(low=self.info['min_pitch'], high=self.info['max_pitch'])
-                    roll  = np.random.uniform(low=-180, high=180) 
-
-                    # Limit how much `yaw` we change (for stability) and fix `roll`.
-                    while (np.abs(yaw-old_yaw) > 90):
-                        yaw = np.random.uniform(low=self.info['min_yaw'], high=self.info['max_yaw'])
-                    while (self.info['roll_neg_ubound'] < roll < self.info['roll_pos_lbound']):
-                        roll = np.random.uniform(low=-180, high=180) 
-
-                    old_yaw = yaw
-                    random_rotation = [yaw, pitch, roll]
+                    # Pick a random rotation and move there. Update `old_yaw` as well.
+                    random_rotation = [self._sample_yaw(old_yaw), 
+                                       self._sample_pitch(), 
+                                       self._sample_roll()]
+                    old_yaw = random_rotation[0]
                     utils.move(arm=self.arm, pos=this_pos, rot=random_rotation, SPEED_CLASS='Slow')
                     time.sleep(3)
                     frame = self.arm.get_current_cartesian_position()
-                    print("    rot {}, _target_ rot:  {}".format(rr, random_rotation))
-                    print("    rot {}, _actual_ pose: {}".format(rr, frame))
+                    random_rotation_str = ["%.2f" % v for v in random_rotation]
+                    print("    rot {}, target rot:  {}".format(rr, random_rotation_str))
+                    print("    rot {}, actual pose: {}".format(rr, frame))
 
                     # Record information.
                     l_center, r_center = self._save_images(this_dir, num, str(rr))
@@ -296,10 +323,12 @@ def collect_guidelines(arm, d, directory):
     info = {}
     info['min_yaw']   = -90
     info['max_yaw']   =  90
-    info['min_pitch'] = -30
-    info['max_pitch'] =  20
+    info['min_pitch'] =  -5
+    info['max_pitch'] =  15
     info['roll_neg_ubound'] = -150 # (-180, roll_neg_ubound)
     info['roll_pos_lbound'] =  150 # (roll_pos_lbound, 180)
+    info['min_roll'] = -175
+    info['max_roll'] = -160
 
     # Move the arm to positions to determine approximately safe ranges for x,y,z values.
     # And to be clear, all the `pos_{lr,ll,ul,ur}` are in robot coordinates.
@@ -393,11 +422,14 @@ if __name__ == "__main__":
         args['d'] = d
         args['arm'] = arm
         args['guidelines_dir'] = directory
-        args['num_trajs'] = 3
-        args['rots_per_stoppage'] = 3
-        args['z_offset'] = 0.002
+        args['z_offset'] = 0.003
         args['z_offset_home'] = 0.020
         args['interpolation_interval'] = 20
+        args['require_negative_roll'] = True
+
+        # THESE ARE THE MAIN VALUES TO CHANGE!!
+        args['num_trajs'] = 5
+        args['rots_per_stoppage'] = 3
 
         # Build the ATC and then collect trajectories!
         ATC = AutoTrajCollector(args)
