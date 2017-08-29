@@ -10,7 +10,7 @@ The second time is when the real action begins and the trajectories can be run a
 This code saves as we go, not at the end, so that it's robust to cases when the dVRK might
 fail (e.g. that MTM reading error we've been seeing a lot lately).
 
-(c) August 2017 by Daniel Seita
+(c) September 2017 by Daniel Seita
 """
 
 import cv2
@@ -90,7 +90,7 @@ class AutoTrajCollector:
         of the robot w.r.t. camera pixels, as the end-effector is hard to work with.
         AND return the center of the contour!
         """
-        image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
+        image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR) 
         image_bgr = image.copy()
 
         # Detect contours *inside* the bounding box (a heuristic).
@@ -98,7 +98,11 @@ class AutoTrajCollector:
             xx, yy, ww, hh = self.d.get_left_bounds()
         else:
             xx, yy, ww, hh = self.d.get_right_bounds()
-        (cnts, _) = cv2.findContours(image.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Note that contour detection requires a single channel image.
+        (cnts, _) = cv2.findContours(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 
+                                     cv2.RETR_TREE, 
+                                     cv2.CHAIN_APPROX_SIMPLE)
         contained_cnts = []
 
         # Find the centroids of the contours in _pixel_space_.
@@ -113,21 +117,27 @@ class AutoTrajCollector:
             except:
                 pass
 
-        # Go from `contained_cnts` to a target contour and process it.
+        # Go from `contained_cnts` to a target contour and process it. And to be clear, 
+        # we're only using the LARGEST contour, which SHOULD be the colored tape!
         if len(contained_cnts) > 0:
-            target_contour = sorted(contained_cnts, key=cv2.contourArea, reverse=True)[:1]
+            target_contour = sorted(contained_cnts, key=cv2.contourArea, reverse=True)[0] # Index 0
             try:
                 M = cv2.moments(target_contour)
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
                 peri = cv2.arcLength(target_contour, True)
                 approx = cv2.approxPolyDP(target_contour, 0.02*peri, True)
-                processed = (cX, cY, approx, peri)
 
                 # Draw them on the `image_bgr` to return, for visualization purposes.
-                (cX, cY, approx, peri) = processed
                 cv2.circle(image_bgr, (cX,cY), 50, (0,0,255))
                 cv2.drawContours(image_bgr, [approx], -1, (0,255,0), 3)
+                cv2.putText(img=image_bgr, 
+                            text="{},{}".format(cX,cY), 
+                            org=(cX+10,cY+10), 
+                            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                            fontScale=1, 
+                            color=(255,255,255), 
+                            thickness=2)
             except:
                 pass
             return image_bgr, (cX,cY)
@@ -214,11 +224,10 @@ class AutoTrajCollector:
             # Total interval present between start and end poses
             tinterval = max(int(np.linalg.norm(displacement)/ interval), 50)    
             print("Number of intervals: {}".format(tinterval))
-            traj_poses.append(start_vect)
 
             for ii in range(0, tinterval, self.interpolation_interval):
                 # SLERP interpolation from tfx function (from `dvrk/robot.py`).
-                mid_pose = start_vect.interpolate(end_vect, (ii+1.0)/ tinterval)   
+                mid_pose = start_vect.interpolate(end_vect, (ii+1.0)/tinterval)   
                 arm.move_cartesian_frame(mid_pose, interpolate=True)
 
                 # --------------------------------------------------------------
@@ -230,7 +239,7 @@ class AutoTrajCollector:
                 old_yaw = this_rot[0]
 
                 # After moving there (keeping rotation fixed) we record information.
-                num = str(intervals_in_traj).zfill(3)
+                num = str(intervals_in_traj).zfill(3) # Increments by 1 each non-rotation movement.
                 l_center, r_center = self._save_images(this_dir, num, '0')
                 traj_poses.append( (frame,l_center,r_center) )
            
@@ -361,26 +370,30 @@ def collect_guidelines(arm, d, directory):
 
 
 if __name__ == "__main__": 
+    """ 
+    When running this for real, be sure to feed (i.e. `tee`) the output into a file 
+    for my own future reference. Again, as I said earlier, we're in two cases, depending
+    on whether a `guidelines.p` file already exists.
+
+    For the second case, there's a bunch of arguments, but no argparse since this isn't
+    being run many times in simulation. By the way, `z_offset` is for generic offsets to 
+    avoid damaging the paper, but `z_offset_home` is only for the four `home` positions.
+    """
     arm, _, d = utils.initializeRobots()
     arm.close_gripper()
     directory = 'traj_collector/guidelines.p'
 
-    # We're going to be in one of two cases, as I already specified.
     if not os.path.isfile(directory):
         print("We're going to start the first step, to collect guidelines.")
         utils.move(arm=arm, pos=[0.0,0.06,-0.13], rot=[0,-10,-170], SPEED_CLASS='Slow')
         collect_guidelines(arm, d, directory)
     else:
         print("Guidelines exist. Now let's proceed to the automatic trajectory collector.")
-
-        # Arguments. No argparse since we're not running this many times.
-        # Note that `z_offset` is for generic offsets to avoid damaging the paper,
-        # but `z_offset_home` is only for the four `home` positions.
         args = {}
         args['d'] = d
         args['arm'] = arm
         args['guidelines_dir'] = directory
-        args['num_trajs'] = 2
+        args['num_trajs'] = 3
         args['rots_per_stoppage'] = 3
         args['z_offset'] = 0.002
         args['z_offset_home'] = 0.020

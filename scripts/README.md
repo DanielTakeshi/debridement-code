@@ -17,6 +17,12 @@
   - `check_camera_location.py` is for checking the original camera position, MAYBE useful if the camera gets hit and its location changes. But in general there's no easy way to recover from that so BE CAREFUL! I better remind people.
 
 
+- **Automatic Calibration Gathering**: ah, THIS could be better and is way more interesting to describe. I can do _automatic_ calibration. Use:
+
+  - `automatic_trajectory_coillector.py` for getting the data. This has to be run twice, but the first is only for getting a `guidelines.p` file to make things easier for the second part. The second run is when the bulk of the work happens.
+  - `automatic_trajectory_collector_part2.py` will get the data formed from the trajectory collector and format it for the rest of my code. This data must be cleaned to some extent.
+
+
 - **Miscellaneous**: 
 
   - Use `measure_speed.py` for measuring speed. I got:
