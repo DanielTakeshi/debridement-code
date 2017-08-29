@@ -65,7 +65,7 @@ def detect_color_hsv(frame):
             'green':  60,
             'blue':   120
     }
-    lower = np.array([110, 90, 90])
+    lower = np.array([110,  80,  80])
     upper = np.array([180, 255, 255])
 
     # Convert from RGB (not BGR) to hsv and apply our chosen thresholding.
@@ -80,6 +80,8 @@ def detect_color_hsv(frame):
 
     # Let's inspect the output and pray it works.
     utilities.call_wait_key(cv2.imshow("Does it detect the desired color?", res))
+    res   = cv2.medianBlur(res, 9)
+    utilities.call_wait_key(cv2.imshow("res but with blur on this", res))
     return res
 
 
@@ -96,7 +98,7 @@ def find_specific_spot(image):
     utilities.call_wait_key(cv2.imshow("Grayscale image", image))
 
     # Detect contours *inside* the bounding box heuristic.
-    xx, yy, ww, hh = 650, 50, 800, 800        
+    xx, yy, ww, hh = 650, 25, 800, 825        
     (cnts, _) = cv2.findContours(image.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contained_cnts = []
     print("number of cnts: {}".format(len(cnts)))
@@ -143,9 +145,12 @@ if __name__ == "__main__":
     arm, _, d = utilities.initializeRobots()
     arm.close_gripper()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
-    utilities.call_wait_key(cv2.imshow("Bounding Box for Contours", d.left_image_bbox))
-    
-    frame = d.left_image.copy()
+
+    #utilities.call_wait_key(cv2.imshow("Bounding Box for Contours (LEFT IMAGE)", d.left_image_bbox))
+    #frame = d.left_image.copy()
+
+    utilities.call_wait_key(cv2.imshow("Bounding Box for Contours (RIGHT IMAGE)", d.right_image_bbox))
+    frame = d.right_image.copy()
 
     res = detect_color_hsv(frame)
     #detect_color_direct(frame)

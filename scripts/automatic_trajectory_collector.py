@@ -46,6 +46,10 @@ class AutoTrajCollector:
                 self.info['home_ul'],
                 self.info['home_ur']
         ]
+        print("\nHere's what we have in our `self.info`:")
+        for key in self.info:
+            print("{} ==> {}".format(key, self.info[key]))
+        print("")
  
 
     def _get_z_from_xy_values(self, x, y):
@@ -53,7 +57,7 @@ class AutoTrajCollector:
         return (self.z_alpha * x) + (self.z_beta * y) + self.z_gamma
 
     
-    def _get_thresholded_image(self, image):
+    def _get_thresholded_image(self, image, left):
         """ Use this to get thresholded images from RGB (not BGR) `image`. 
        
         This should produce images that are easy enough for contour detection code 
@@ -62,8 +66,13 @@ class AutoTrajCollector:
 
         We assume the color target is red, FYI, and that it's RGB->HSV, not BGR->HSV.
         """
-        lower = np.array([110, 90, 90])
-        upper = np.array([180, 255, 255])
+        # Requires some tuning and inspecting stuff from the two cameras.
+        if left:
+            lower = np.array([110, 90, 90])
+            upper = np.array([180, 255, 255])
+        else:
+            lower = np.array([110, 80, 80])
+            upper = np.array([180, 255, 255])
 
         image = cv2.medianBlur(image, 9)
         image = cv2.bilateralFilter(image, 7, 13, 13)
@@ -71,7 +80,61 @@ class AutoTrajCollector:
         hsv   = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
         mask  = cv2.inRange(hsv, lower, upper)
         res   = cv2.bitwise_and(image, image, mask=mask)
+        res   = cv2.medianBlur(res, 9)
         return res
+
+
+    def _get_contour(self, image, left):
+        """ 
+        Given `image` in HSV format, get the contour center. This is the WRIST position
+        of the robot w.r.t. camera pixels, as the end-effector is hard to work with.
+        AND return the center of the contour!
+        """
+        image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
+        image_bgr = image.copy()
+
+        # Detect contours *inside* the bounding box (a heuristic).
+        if left:
+            xx, yy, ww, hh = self.d.get_left_bounds()
+        else:
+            xx, yy, ww, hh = self.d.get_right_bounds()
+        (cnts, _) = cv2.findContours(image.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contained_cnts = []
+
+        # Find the centroids of the contours in _pixel_space_.
+        for c in cnts:
+            try:
+                M = cv2.moments(c)
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                # Enforce it to be within bounding box.
+                if (xx < cX < xx+ww) and (yy < cY < yy+hh):
+                    contained_cnts.append(c)
+            except:
+                pass
+
+        # Go from `contained_cnts` to a target contour and process it.
+        if len(contained_cnts) > 0:
+            target_contour = sorted(contained_cnts, key=cv2.contourArea, reverse=True)[:1]
+            try:
+                M = cv2.moments(target_contour)
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                peri = cv2.arcLength(target_contour, True)
+                approx = cv2.approxPolyDP(target_contour, 0.02*peri, True)
+                processed = (cX, cY, approx, peri)
+
+                # Draw them on the `image_bgr` to return, for visualization purposes.
+                (cX, cY, approx, peri) = processed
+                cv2.circle(image_bgr, (cX,cY), 50, (0,0,255))
+                cv2.drawContours(image_bgr, [approx], -1, (0,255,0), 3)
+            except:
+                pass
+            return image_bgr, (cX,cY)
+
+        else:
+            # Failed to find _any_ contour.
+            return image_bgr, (-1,-1) 
 
 
     def _move_to_random_home_position(self):
@@ -80,6 +143,21 @@ class AutoTrajCollector:
         home_pos, home_rot = utils.lists_of_pos_rot_from_frame(pose)
         home_pos[2] += self.z_offset_home
         utils.move(arm=self.arm, pos=home_pos, rot=home_rot, SPEED_CLASS='Slow')
+
+
+    def _save_images(self, this_dir, num, rr):
+        """ Saves me some typing. """
+        left_th  = self._get_thresholded_image(self.d.left_image.copy(),  left=True)
+        right_th = self._get_thresholded_image(self.d.right_image.copy(), left=False)
+        left_th, l_center  = self._get_contour(left_th,  left=True)
+        right_th, r_center = self._get_contour(right_th, left=False)
+
+        cv2.imwrite(this_dir+'left/'+num+'_rot'+rr+'_left.jpg',         self.d.left_image)
+        cv2.imwrite(this_dir+'right/'+num+'_rot'+rr+'_right.jpg',       self.d.right_image)
+        cv2.imwrite(this_dir+'left_th/'+num+'_rot'+rr+'_left_th.jpg',   left_th)
+        cv2.imwrite(this_dir+'right_th/'+num+'_rot'+rr+'_right_th.jpg', right_th)
+
+        return l_center, r_center
 
 
     def collect_trajectories(self):
@@ -112,14 +190,14 @@ class AutoTrajCollector:
             intervals_in_traj = 0
             traj_poses = []
             self._move_to_random_home_position()
-            time.sleep(2)
+            time.sleep(3)
 
             # Pick a safe target position. 
             xx = np.random.uniform(low=self.info['min_x'], high=self.info['max_x'])
             yy = np.random.uniform(low=self.info['min_y'], high=self.info['max_y'])
             zz = self._get_z_from_xy_values(xx, yy)
             target_position = [xx, yy, zz + self.z_offset] 
-            print("Trajectory {}, target position: {}".format(traj, target_position))
+            print("\n\nTrajectory {}, target position: {}".format(traj, target_position))
 
             # ------------------------------------------------------------------
             # Follows the `linear_interpolation` movement code to take incremental sets.
@@ -135,7 +213,6 @@ class AutoTrajCollector:
 
             # Total interval present between start and end poses
             tinterval = max(int(np.linalg.norm(displacement)/ interval), 50)    
-
             print("Number of intervals: {}".format(tinterval))
             traj_poses.append(start_vect)
 
@@ -147,44 +224,39 @@ class AutoTrajCollector:
                 # --------------------------------------------------------------
                 # Back to my stuff. Note that `frame` = `mid_pose` (in theory, at least).
                 time.sleep(3)
-                print("interval {} of {}, mid_pose: {}".format(ii+1,tinterval,mid_pose))
-                frame = self.arm.get_current_cartesian_position()
+                print("\ninterval {} of {}, mid_pose: {}".format(ii+1, tinterval, mid_pose))
+                frame = self.arm.get_current_cartesian_position() # The _actual_ pose.
                 this_pos, this_rot = utils.lists_of_pos_rot_from_frame(frame)
-                traj_poses.append(frame)
+                old_yaw = this_rot[0]
 
-                # After moving there (keeping rotation fixed) we save the images.
+                # After moving there (keeping rotation fixed) we record information.
                 num = str(intervals_in_traj).zfill(3)
-                left_thresholded  = self._get_thresholded_image(self.d.left_image.copy())
-                right_thresholded = self._get_thresholded_image(self.d.right_image.copy())
-                cv2.imwrite(this_dir+'left/'+num+'_rot0_left.jpg',         self.d.left_image)
-                cv2.imwrite(this_dir+'right/'+num+'_rot0_right.jpg',       self.d.right_image)
-                cv2.imwrite(this_dir+'left_th/'+num+'_rot0_left_th.jpg',   left_thresholded)
-                cv2.imwrite(this_dir+'right_th/'+num+'_rot0_right_th.jpg', right_thresholded)
+                l_center, r_center = self._save_images(this_dir, num, '0')
+                traj_poses.append( (frame,l_center,r_center) )
            
                 for rr in range(1, self.rots_per_stoppage+1):
                     # Pick a random rotation and move there.
                     yaw   = np.random.uniform(low=self.info['min_yaw'],   high=self.info['max_yaw'])
                     pitch = np.random.uniform(low=self.info['min_pitch'], high=self.info['max_pitch'])
                     roll  = np.random.uniform(low=-180, high=180) 
-                    while (self.info['roll_neg_ubound'] < roll < self.info['roll_pos_lbound']):
-                        roll  = np.random.uniform(low=-180, high=180) 
 
+                    # Limit how much `yaw` we change (for stability) and fix `roll`.
+                    while (np.abs(yaw-old_yaw) > 90):
+                        yaw = np.random.uniform(low=self.info['min_yaw'], high=self.info['max_yaw'])
+                    while (self.info['roll_neg_ubound'] < roll < self.info['roll_pos_lbound']):
+                        roll = np.random.uniform(low=-180, high=180) 
+
+                    old_yaw = yaw
                     random_rotation = [yaw, pitch, roll]
                     utils.move(arm=self.arm, pos=this_pos, rot=random_rotation, SPEED_CLASS='Slow')
                     time.sleep(3)
                     frame = self.arm.get_current_cartesian_position()
-                    traj_poses.append(frame)
-                    print("    rot {}, _target_ rot: {}".format(rr, random_rotation))
+                    print("    rot {}, _target_ rot:  {}".format(rr, random_rotation))
                     print("    rot {}, _actual_ pose: {}".format(rr, frame))
 
-                    # Save the left and right camera views (and the _thresholded_ ones).
-                    rr = str(rr)
-                    left_thresholded  = self._get_thresholded_image(self.d.left_image.copy())
-                    right_thresholded = self._get_thresholded_image(self.d.right_image.copy())
-                    cv2.imwrite(this_dir+'left/'+num+'_rot'+rr+'_left.jpg',         self.d.left_image)
-                    cv2.imwrite(this_dir+'right/'+num+'_rot'+rr+'_right.jpg',       self.d.right_image)
-                    cv2.imwrite(this_dir+'left_th/'+num+'_rot'+rr+'_left_th.jpg',   left_thresholded)
-                    cv2.imwrite(this_dir+'right_th/'+num+'_rot'+rr+'_right_th.jpg', right_thresholded)
+                    # Record information.
+                    l_center, r_center = self._save_images(this_dir, num, str(rr))
+                    traj_poses.append( (frame,l_center,r_center) )
 
                 # Back to the original rotation; I think this will make it work better.
                 utils.move(arm=self.arm, pos=this_pos, rot=this_rot, SPEED_CLASS='Slow')
@@ -309,7 +381,7 @@ if __name__ == "__main__":
         args['arm'] = arm
         args['guidelines_dir'] = directory
         args['num_trajs'] = 2
-        args['rots_per_stoppage'] = 2
+        args['rots_per_stoppage'] = 3
         args['z_offset'] = 0.002
         args['z_offset_home'] = 0.020
         args['interpolation_interval'] = 20

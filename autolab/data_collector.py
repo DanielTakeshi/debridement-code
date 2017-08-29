@@ -43,8 +43,8 @@ class DataCollector:
 
         # To get a bounding box of points, to filter away any nonsense.
         # For the initial open loop policy for the tissues that Steve gave me.
-        self.lx, self.ly, self.lw, self.lh = 650, 50, 800, 800        
-        self.rx, self.ry, self.rw, self.rh = 250, 250, 750, 500
+        self.lx, self.ly, self.lw, self.lh = 625, 40, 850, 820        
+        self.rx, self.ry, self.rw, self.rh = 550, 40, 850, 820
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
 
@@ -243,3 +243,11 @@ class DataCollector:
                     # We're close enough that it's a duplicate.
                     return False
         return True
+
+
+    def get_left_bounds(self):
+        return self.lx, self.ly, self.lw, self.lh
+
+
+    def get_right_bounds(self):
+        return self.rx, self.ry, self.rw, self.rh
