@@ -1,14 +1,19 @@
 # Scripts
 
-- **Running the Code**: use `open_loop_seeds.py` to get all the data. It automatically saves the original images so I can verify that the failure cases were due to perception and not calibration.
+## Running the Robot
 
+- **Running the Code**: use `open_loop_seeds.py` to pick seeds! It automatically saves the original images so I can verify that the failure cases were due to perception and not calibration.
+
+
+## Training from Calibration Data
 
 - **Training Rigid Body + Random Forest**: Very important: `mapping.py` develops mappings between pixels to robot/camera stuff. 
 
-  - Then, `click_and_crop.py` will test if the stuff in `mapping.py` worked, basically the manual thing where I check if it goes to the right spot, and `collect_together.py` will put it in one image for me.
+  - (**Update: Deprecated**) Then, `click_and_crop.py` will test if the stuff in `mapping.py` worked, basically the manual thing where I check if it goes to the right spot, and `collect_together.py` will put it in one image for me.
 
-  - Also, `train_rf.py` (and then `train_rf_make_rf.py`) should ideally make the full pipeline work by getting the data (then training the RF) on my actual data where I correct based on my own data. Then `click_and_crop_v2.py` will test that with the different (but better, in my opinion) method for dealing with random forest residuals.
+  - Then, `train_rf.py` (and then `train_rf_make_rf.py`) should ideally make the full pipeline work by getting the data (then training the RF) on my actual data where I correct based on my own data. Then `click_and_crop_v2.py` will test that with the different (but better, in my opinion) method for dealing with random forest residuals.
 
+## Data Collection for Calibration
 
 - **Initial Calibration Data Gathering**: `calibrate_onearm.py` is when I do my manual stuff with the DVRK's arms. Use `rotations_sandbox.py` to check which rotation to use. Then: 
 
@@ -22,6 +27,8 @@
   - `automatic_trajectory_coillector.py` for getting the data. This has to be run twice, but the first is only for getting a `guidelines.p` file to make things easier for the second part. The second run is when the bulk of the work happens.
   - `automatic_trajectory_collector_part2.py` will get the data formed from the trajectory collector and format it for the rest of my code. This data must be cleaned to some extent.
 
+
+## Other
 
 - **Miscellaneous**: 
 
