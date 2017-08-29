@@ -1,13 +1,18 @@
 """
-Does the entire mapping pipeline. Saves stuff in ONE dictionary w/parameters.
+Does the entire mapping pipeline. Saves stuff in ONE dictionary w/parameters. Can 
+handle both the manual and automatic calibration steps. I use argparse here so that 
+I remember which settings to use and don't mistakenly use an outdated configuration.
+
+(c) September 2017 by Daniel Seita 
 """
 
 from dvrk.robot import *
 from autolab.data_collector import DataCollector
 from geometry_msgs.msg import PointStamped, Point
 from sklearn.ensemble import RandomForestRegressor
-import image_geometry
+import argparse
 import cv2
+import image_geometry
 import numpy as np
 import pickle
 import sys
@@ -15,16 +20,11 @@ import time
 import utilities as utils
 np.set_printoptions(suppress=True)
 
-# DOUBLE CHECK ALL THESE!! Especially the version number!
-VERSION      = '01' # 0X gripper, 1X scissors.
-LEFT_POINTS  = pickle.load(open('config/grid/calib_circlegrid_left_v'+VERSION+'_ONELIST.p',  'r'))
-RIGHT_POINTS = pickle.load(open('config/grid/calib_circlegrid_right_v'+VERSION+'_ONELIST.p', 'r'))
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
-NUM_POINTS   = len(LEFT_POINTS)
 
 
-def debug_1(left, right, points3d):
+def debug_1(left, right, points3d, LEFT_POINTS, RIGHT_POINTS):
     print("\nSome debug prints:")
     print("robot points in left/right camera (we'll average later):")
     for i,(pt1,pt2) in enumerate(zip(LEFT_POINTS, RIGHT_POINTS)):
@@ -72,7 +72,7 @@ def get_points_3d(left_points, right_points, info):
     return points_3d
 
 
-def pixels_to_3d():
+def pixels_to_3d(LEFT_POINTS, RIGHT_POINTS):
     """ 
     Call this to start the process of getting camera points from pixels. 
     FYI, I explicitly extract the pixels from my points since they have more info.
@@ -145,12 +145,10 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     Notation: A for camera points, B for robot points, so want to find an affine mapping
     from A -> B with orthogonal rotation and a translation.
 
-    UPDATE: Also returns the random forest for estimating the residual noise!
+    UPDATE: Also returns the random forest for estimating the residual noise! This will be
+    the "bad" RF baseline since the rigid body thinks it's already so good.
     """
-    if VERSION == '00':
-        assert camera_points_3d.shape == robot_points_3d.shape == (36,3)
-    elif VERSION == '10':
-        assert camera_points_3d.shape == robot_points_3d.shape == (35,3)
+    assert camera_points_3d.shape[1] == robot_points_3d.shape[1] == 3
     A = camera_points_3d.T # (3,N)
     B = robot_points_3d.T  # (3,N)
 
@@ -160,7 +158,7 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     A = A - meanA
     B = B - meanB
     covariance = B.dot(A.T)
-    U, sigma, VH = np.linalg.svd(covariance) # VH = V.T for our purposes.
+    U, sigma, VH = np.linalg.svd(covariance) # VH = V.T, i.e. numpy transposes it for us.
 
     V = VH.T
     D = np.eye(3)
@@ -231,7 +229,7 @@ def solve_rigid_transform(camera_points_3d, robot_points_3d, debug=True):
     return RB_matrix, rf_residuals
 
 
-def correspond_left_right_pixels(left, right, debug=True):
+def correspond_left_right_pixels(left, right, collection, VERSION, debug=True):
     """ This is my custom solution. To check it I should apply it on fixed
     points and just flip through the two images (literally click on the arrow
     keys) to see if they overlap.
@@ -286,8 +284,12 @@ def correspond_left_right_pixels(left, right, debug=True):
                         fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=0.75, color=(0,0,255), thickness=2)
 
-        cv2.imwrite('images/calib_left_w_left_points_v'+VERSION+'.jpg', img_left)
-        cv2.imwrite('images/calib_right_w_left_points_v'+VERSION+'.jpg', img_right)
+        if collection == 'auto':
+            cv2.imwrite('images/calib_auto_left_w_left_points_v'+VERSION+'.jpg',  img_left)
+            cv2.imwrite('images/calib_auto_right_w_left_points_v'+VERSION+'.jpg', img_right)
+        elif collection == 'manual':
+            cv2.imwrite('images/calib_manual_left_w_left_points_v'+VERSION+'.jpg',  img_left)
+            cv2.imwrite('images/calib_manual_right_w_left_points_v'+VERSION+'.jpg', img_right)
 
         # Now back to traditional debugs.
         print("\nBegin debug prints:")
@@ -340,21 +342,45 @@ def left_pixel_to_robot_prediction(left, params, true_points):
 
 
 if __name__ == "__main__":
-    # Get the 3D **camera** points.
-    if VERSION == '00':
-        assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
-    elif VERSION == '01' or VERSION == '10':
-        assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 35
-    left, right, points_3d = pixels_to_3d()
-    debug_1(left, right, points_3d)
+    pp = argparse.ArgumentParser()
+    pp.add_argument('--collection', type=str, help='auto or manual')
+    pp.add_argument('--version_in', type=int, help='0X for gripper, 1X for scissors')
+    args = pp.parse_args()
+    assert args.collection.lower() in ['auto', 'manual']
 
+    # Load left and right calibration data, since I saved them separately. That's only to 
+    # maintain consistency w/the manual version (the auto one could be saved in one list).
+    VERSION = str(args.version_in).zfill(2)
+    if args.collection == 'auto':
+        LEFT_POINTS  = pickle.load(open('config/grid_auto/auto_calib_left_'+VERSION+'.p',  'r'))
+        RIGHT_POINTS = pickle.load(open('config/grid_auto/auto_calib_right_'+VERSION+'.p', 'r'))
+    elif args.collection == 'manual':
+        LEFT_POINTS  = pickle.load(open('config/grid/calib_circlegrid_left_v'+VERSION+'_ONELIST.p',  'r'))
+        RIGHT_POINTS = pickle.load(open('config/grid/calib_circlegrid_right_v'+VERSION+'_ONELIST.p', 'r'))
+        if VERSION == '00':
+            assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 36
+        elif VERSION == '01' or VERSION == '10':
+            assert len(LEFT_POINTS) == len(RIGHT_POINTS) == 35
+    NUM_POINTS = len(LEFT_POINTS)
+
+    # -----------------------------
+    # Get the 3D **camera** points.
+    # -----------------------------
+    left, right, points_3d = pixels_to_3d(LEFT_POINTS, RIGHT_POINTS)
+    debug_1(left, right, points_3d, LEFT_POINTS, RIGHT_POINTS)
+
+    # -----------------------------------------------------------------------------
     # Solve rigid transform. Average out the robot points (they should be similar).
+    # Again this isn't technically needed for the auto data collection but w/e.
+    # -----------------------------------------------------------------------------
     robot_3d = []  # Contains *averaged* true values from my manual movement of the arm.
     for (pt1, pt2) in zip(LEFT_POINTS, RIGHT_POINTS):
         pos_l, _, _, _ = pt1
         pos_r, _, _, _ = pt2
         pos_l = np.squeeze(np.array(pos_l))
         pos_r = np.squeeze(np.array(pos_r))
+        if args.collection == 'auto':
+            assert np.allclose(pos_l, pos_r)
         robot_3d.append( (pos_l+pos_r) / 2. ) # We have two measurements per point.
     robot_3d = np.array(robot_3d)
 
@@ -363,27 +389,30 @@ if __name__ == "__main__":
             robot_points_3d=robot_3d,
             debug=True)
 
+    # -----------------------------------------------------------------------------------
     # Develop correspondence between left and right camera pixels. I assume in real
-    # application, we'll only use the left camera at one time, but with this correspondence,
+    # application, we'll only use the left camera at one time, but w/this correspondence,
     # we effectively "pretend" that we know what the right camera is viewing.
-    theta_l2r, theta_r2l = correspond_left_right_pixels(left, right)
+    # Note: better to IGNORE this if using the automatic trajectory collector, since that
+    # has much noiser left/right correspondences. Just use the manual one in application.
+    # -----------------------------------------------------------------------------------
+    theta_l2r, theta_r2l = correspond_left_right_pixels(left, right, args.collection, VERSION)
 
-    # Save various matrices. I also need a guide to _using_ them.
+    # ----------------------------------------
+    # Save various matrices in one dictionary. 
+    # ----------------------------------------
     params = {}
     params['RB_matrix'] = rigid_body_matrix
     params['rf_residuals'] = residuals_mapping
     params['theta_l2r'] = theta_l2r
     params['theta_r2l'] = theta_r2l
-    pickle.dump(params, open('config/mapping_results/params_matrices_v'+VERSION+'.p', 'w'))
+    if args.collection == 'auto':
+        pickle.dump(params, open('config/mapping_results/auto_params_matrices_v'+VERSION+'.p', 'w'))
+    elif args.collection == 'manual':
+        pickle.dump(params, open('config/mapping_results/manual_params_matrices_v'+VERSION+'.p', 'w'))
 
-    # Let's see what happens if we pretend we ignore the right camera's pixels.
+    # -----------------------------------------------------------------------------
+    # Let's see what happens if we _pretend_ we ignore the right camera's pixels.
     # Given the left camera's pixels, see if we can accurately predict robot frame.
+    # -----------------------------------------------------------------------------
     left_pixel_to_robot_prediction(left, params, robot_3d)
-
-    # More debugging.
-    new_left = [
-            (795, 135),
-            (795, 100),
-            (803, 119)
-    ]
-    left_pixel_to_robot_prediction(new_left, params, None)
