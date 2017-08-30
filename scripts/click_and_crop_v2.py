@@ -7,6 +7,8 @@ is, and then the code should automatically record stuff. Be careful to record th
 so it's manual but I'm usually good with this.
 
 BE CAREFUL TO ACTUALLY DRAG SOMETHING, if you click once it will cause an assertion error.
+
+(c) September 2017 by Daniel Seita
 """
 
 import cv2

@@ -95,10 +95,10 @@ class DataCollector:
         self.left_image_gray = IMAGE_PREPROCESSING_DEFAULT(self.left_image, grayscale_only=True)
 
         # Some experimentation.
-        self.tmp = cv2.medianBlur(self.left_image.copy(), 9)
-        self.tmp = cv2.cvtColor(self.tmp, cv2.COLOR_BGR2GRAY)
-        self.tmp = cv2.bilateralFilter(self.tmp, 7, 13, 13)
-        self.left_image_bbox = self.make_bounding_box(self.tmp, x,y,w,h)
+        self.tmp_left = cv2.medianBlur(self.left_image.copy(), 9)
+        self.tmp_left = cv2.cvtColor(self.tmp_left, cv2.COLOR_BGR2GRAY)
+        self.tmp_left = cv2.bilateralFilter(self.tmp_left, 7, 13, 13)
+        self.left_image_bbox = self.make_bounding_box(self.tmp_left, x,y,w,h)
 
         self.left_contours = self.get_contours(self.left_image_proc, self.left_apply_bbox)
         self.left_contours_by_size = self.get_contours_by_size(self.left_image_proc, 
@@ -130,6 +130,12 @@ class DataCollector:
         self.right_circles = self.get_circles_list(self.right_image_proc, self.right_apply_bbox, x,y,w,h)
         self.right_image_circles = self.set_circles(self.right_image_gray.copy(), self.right_circles)
 
+        # Some experimentation.
+        #self.tmp_right = cv2.medianBlur(self.right_image.copy(), 1)
+        #self.tmp_right = cv2.cvtColor(self.right_image.copy(), cv2.COLOR_BGR2GRAY)
+        #self.tmp_right = cv2.bilateralFilter(self.tmp_right, 7, 13, 13)
+        #self.tmp_right = cv2.GaussianBlur(self.tmp_right, (5,5), 0)
+        #self.tmp_right = cv2.Canny(self.tmp_right, 100, 200)
 
     def make_bounding_box(self, img, x,y,w,h):
         """ Make a bounding box. """

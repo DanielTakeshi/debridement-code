@@ -15,6 +15,8 @@ ESC_KEYS     = [27, 1048603]
 HOME_POS     = [0.00, 0.06, -0.13]
 C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
+STEREO_MODEL = image_geometry.StereoCameraModel()
+STEREO_MODEL.fromCameraInfo(C_LEFT_INFO, C_RIGHT_INFO)
 
 
 def initializeRobots(sleep_time=2):
@@ -118,13 +120,7 @@ def left_pixel_to_robot_prediction(left_pt, params, better_rf,
     leftx, lefty = left_pt
     left_pt_hom = np.array([leftx, lefty, 1.])
     right_pt = left_pt_hom.dot(params['theta_l2r'])
-
-    # Copy the code I wrote to convert these pts to camera points.
-    disparity = np.linalg.norm(left_pt-right_pt)
-    stereoModel = image_geometry.StereoCameraModel()
-    stereoModel.fromCameraInfo(C_LEFT_INFO, C_RIGHT_INFO)
-    (xx,yy,zz) = stereoModel.projectPixelTo3d( (leftx,lefty), disparity )
-    camera_pt = np.array([xx, yy, zz])
+    camera_pt = np.array(camera_pixels_to_camera_coords(list(left_pt), right_pt)) 
 
     # Now I can apply the rigid body and RF (if desired).
     camera_pt = np.concatenate( (camera_pt, np.ones(1)) )
@@ -150,6 +146,14 @@ def left_pixel_to_robot_prediction(left_pt, params, better_rf,
         print("Warning! Unsafe target: {}".format(target))
         sys.exit()
     return target
+
+
+def camera_pixels_to_camera_coords(left_pt, right_pt):
+    """ Given [lx,ly] and [rx,ry], determine [cx,cy,cz]. Everything should be LISTS. """
+    assert len(left_pt) == len(right_pt) == 2
+    disparity = np.linalg.norm(left_pt-right_pt)
+    (xx,yy,zz) = STEREO_MODEL.projectPixelTo3d( (left_pt[0],left_pt[1]), disparity )
+    return [xx, yy, zz] 
 
 
 def get_average_rotation(version):
@@ -180,6 +184,7 @@ def get_rotation_from_version(version):
     Right now this is a lot of trial and error, but there isn't much of an alternative.
     Replaces the old method of `get_average_rotation`.
     """
+    print("WARNING: this method (get_rotation_from_version) is incomplete, use at your own risk!!")
     if version == '00' or version == '10':
         return [0, -10, -170] # yaw 0 degrees
     elif version == '01':
@@ -213,6 +218,8 @@ def move(arm, pos, rot, SPEED_CLASS):
     SPEED_CLASS: [String]
         Slow, Medium, or Fast.
     """
+    if pos[2] < -0.18:
+        raise ValueError("Desired z-coord of {} is not safe! Terminating!".format(pos[2]))
     if SPEED_CLASS == 'Slow':
         arm.move_cartesian_frame_linear_interpolation(
                 tfx.pose(pos, tfx.tb_angles(rot[0],rot[1],rot[2])), 0.03
@@ -237,3 +244,32 @@ def lists_of_pos_rot_from_frame(frame):
     rot  = [rott.yaw_deg, rott.pitch_deg, rott.roll_deg]
     assert len(pos) == len(rot) == 3
     return pos, rot
+
+
+def get_interpolated_pitch_and_roll(yaw, info):
+    """ We're making the simplifying assumptions that we can use interpolated pitch 
+    and roll values from a given yaw value.
+
+    Here, `info` should be the dictionary from `traj_collector/guidelines.p`.
+    """
+    min_y = info['min_yaw']
+    max_y = info['max_yaw']
+    min_p = info['min_pitch']
+    max_p = info['max_pitch']
+    min_r = info['min_roll']
+    max_r = info['max_roll']
+
+    range_y = max_y - min_y
+    range_p = max_p - min_p
+    range_r = max_r - min_r
+    assert range_y>0 and range_p>0 and range_r>0
+
+    # Gives the percentile of the current yaw, e.g. yaw=0 is typically the 50th percentile.
+    yaw_percentile = (yaw - min_y) / float(range_y)
+    assert 0.0 <= yaw_percentile <= 1.0
+    
+    # Given this percentile, find the equivalent percentile values of pitch and roll.
+    pitch = (range_p * yaw_percentile) + min_p
+    roll =  (range_r * yaw_percentile) + min_r
+
+    return pitch, roll

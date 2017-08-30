@@ -9,9 +9,11 @@
 
 - **Training Rigid Body + Random Forest**: Very important: `mapping.py` develops mappings between pixels to robot/camera stuff. 
 
-  - (**Update: Deprecated**) Then, `click_and_crop.py` will test if the stuff in `mapping.py` worked, basically the manual thing where I check if it goes to the right spot, and `collect_together.py` will put it in one image for me.
+  - `train_rf.py` (and then `train_rf_make_rf.py`) should ideally make the full pipeline work by getting the data (then training the RF) on my actual data where I correct based on my own data. Then `click_and_crop_v2.py` will test that with the different (but better, in my opinion) method for dealing with random forest residuals. Though I don't need to use that human-guided random forest for the "RB only" or the "neural net only" strategies. 
 
-  - Then, `train_rf.py` (and then `train_rf_make_rf.py`) should ideally make the full pipeline work by getting the data (then training the RF) on my actual data where I correct based on my own data. Then `click_and_crop_v2.py` will test that with the different (but better, in my opinion) method for dealing with random forest residuals.
+  - Use `click_and_crop_v3.py` for the auto trajectory case. I got tired of splitting it by cases.
+  
+  - Use `collect_together.py` to get stats and an image.
 
 ## Data Collection for Calibration
 

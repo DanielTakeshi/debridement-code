@@ -14,6 +14,10 @@ For images after my UAI trip. Note that some of the images that were used to che
 - Version 11, scissors, RB + internal RF
 - Version 12, scissors, RB + human-guided RF.
 
+Versions 2X are for mappings from the neural networks.
+
+- Version 20 for the first net I tried ...
+
 ## Visuals
 
 (There's a README in this directory.)
