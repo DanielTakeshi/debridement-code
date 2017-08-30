@@ -151,7 +151,7 @@ def left_pixel_to_robot_prediction(left_pt, params, better_rf,
 def camera_pixels_to_camera_coords(left_pt, right_pt):
     """ Given [lx,ly] and [rx,ry], determine [cx,cy,cz]. Everything should be LISTS. """
     assert len(left_pt) == len(right_pt) == 2
-    disparity = np.linalg.norm(left_pt-right_pt)
+    disparity = np.linalg.norm( np.array(left_pt) - np.array(right_pt) )
     (xx,yy,zz) = STEREO_MODEL.projectPixelTo3d( (left_pt[0],left_pt[1]), disparity )
     return [xx, yy, zz] 
 

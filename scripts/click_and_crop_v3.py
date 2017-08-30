@@ -162,7 +162,7 @@ def test_calibration(args, arm, d, PARAMS, IMDIR, OUTPUT_FILE):
         utils.move(arm, predicted_pos, rotation, 'Slow')
         time.sleep(5)
 
-        # Update image (left, through it doesn't matter) and put center coords. Blue=Before, Red=AfteR.
+        # Update image (left, though it doesn't matter) and put center coords. Blue=Before, Red=AfteR.
         updated_image_copy = (d.left_image).copy()
         cv2.circle(img=updated_image_copy, center=(cX,cY), radius=6, color=(255,0,0), thickness=-1)
         cv2.putText(img=updated_image_copy, 
@@ -191,8 +191,8 @@ def test_calibration(args, arm, d, PARAMS, IMDIR, OUTPUT_FILE):
         new_pos, new_rot = utils.lists_of_pos_rot_from_frame(
                 arm.get_current_cartesian_position()
         )
-        data_pt = {'target_pos': pos,
-                   'target_rot': ROTATION,
+        data_pt = {'target_pos': predicted_pos,
+                   'target_rot': rotation,
                    'actual_pos': new_pos,
                    'actual_rot': new_rot,
                    'center_target_pixels': (cX,cY),
