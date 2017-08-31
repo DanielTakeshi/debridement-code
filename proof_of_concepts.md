@@ -31,13 +31,15 @@ and these are NOT equal, despite having the same camera points! But the point is
 
 These are subtle points.
 
-- If you just rotate a gripper, the position of the robot in `x,y,z` should be the same.
-- But if you want to pick up a seed, some additional adjustment is needed in pitch, roll and additional movement (due to "rotation mechanisms..." for lack of a better description) and THAT is where the different robot positions result from.
+- If you **just** rotate a gripper, the position of the robot in `x,y,z` SHOULD differ a bit since rotation will in some way impact the end-effector location.
+- But if you want to pick up a seed, some further additional adjustment is needed in pitch, roll and additional movement (due to "rotation mechanisms..." for lack of a better description).
+
+Thus there are really two extra sources of uncertainty in the robot position.
 
 
 ## Case 2, Different Camera Points
 
-I was going to do this, but it is kind of redundant. Basically, if we are given a seed and a gripper that at yaw=-90 can pick it up, if we just change yaw to +90, the robot position does not actually change. But the seed must be shifted to allow the robot to grip it at the current gripper. Thus the camera points are different, even if the robot targets are the same, i.e.:
+I was going to do this, but it is kind of redundant. Basically, if we are given a seed and a gripper that at yaw=-90 can pick it up, if we just change yaw to +90, the robot position does not actually change. **UPDATE: actually I don't think this is right ... please ignore this discussion** But the seed must be shifted to allow the robot to grip it at the current gripper. Thus the camera points are different, even if the robot targets are the same, i.e.:
 
 ```
 f(cx, cy, cz, -90, pitch, roll) = f(cx', cy', cz', +90, pitch, roll)

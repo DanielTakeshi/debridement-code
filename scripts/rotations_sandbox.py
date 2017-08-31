@@ -251,8 +251,8 @@ if __name__ == "__main__":
                               d.left_contours, 
                               d.right_contours, 
                               arm)
-    proof_of_concept_part_two(d.left_image.copy(), 
-                              d.right_image.copy(), 
-                              d.left_contours, 
-                              d.right_contours, 
-                              arm)
+    #proof_of_concept_part_two(d.left_image.copy(), 
+    #                          d.right_image.copy(), 
+    #                          d.left_contours, 
+    #                          d.right_contours, 
+    #                          arm)
