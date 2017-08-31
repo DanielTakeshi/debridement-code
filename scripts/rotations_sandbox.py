@@ -217,6 +217,16 @@ def proof_of_concept_part_one(left_im, right_im, left_contours, right_contours, 
     # But this means we don't have the same ROBOT point that can grip the seed!!
 
 
+def proof_of_concept_part_two(left_im, right_im, left_contours, right_contours, arm):
+    """  Second part ... """
+    center_left  = get_single_contour_center(left_im,  left_contours)
+    center_right = get_single_contour_center(right_im, right_contours)
+    cv2.destroyAllWindows()
+    camera_pt = utils.camera_pixels_to_camera_coords(center_left, center_right)
+    print("(left, right) = ({}, {})".format(center_left, center_right))
+    print("(cx,cy,cz) = ({:.4f}, {:.4f}, {:.4f})".format(*camera_pt))
+
+
 if __name__ == "__main__":
     """ See the top of the file for program-wide arguments. """
     arm, _, d = utils.initializeRobots(sleep_time=2)
@@ -225,21 +235,7 @@ if __name__ == "__main__":
     print("arm home: {}".format(arm.get_current_cartesian_position()))
 
     # Test with angles. NOTE: no need to have yaw be outside [-89.9, 90].
-    #rotations = [
-    #        (45, -12, -170),
-    #        (90, -12, -170),
-    #        (135, -12, -170),
-    #        (180, -12, -170)
-    #]
-    #rotations = [
-    #        (-135, -12, -170),
-    #        (-90, -12, -170),
-    #        (-45, -12, -170),
-    #        (-180, -12, -170)
-    #]
-
-    utils.show_images(d)
-
+    #utils.show_images(d)
     #rotations = [ (-90, 10, -170) for i in range(9)]
     #motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
 
@@ -251,6 +247,11 @@ if __name__ == "__main__":
 
     # Test proof of concept of the need for the automatic trajectory collection.
     proof_of_concept_part_one(d.left_image.copy(), 
+                              d.right_image.copy(), 
+                              d.left_contours, 
+                              d.right_contours, 
+                              arm)
+    proof_of_concept_part_two(d.left_image.copy(), 
                               d.right_image.copy(), 
                               d.left_contours, 
                               d.right_contours, 

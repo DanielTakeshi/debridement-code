@@ -18,20 +18,29 @@ pos,rot +90 yaw:
 (0.0525, 0.0639, -0.1642), (89.4014, -11.0428, -176.7663)
 ```
 
-I kept a seed in the same spot. The first position listed, with yaw=-90 (actually -88.0708...), is for a yaw=-90 position which can grip the seed.
+I kept a seed in the same spot. The first position listed, with yaw=-90 (actually -88.0708...), is for a yaw=-90 position which can grip the seed. What happens if were to just rotate that? We would be off by a lot. See my image. You cannot just rotate to yaw=90 and expect things to be the same. (This is not printed in the output here, BTW, it is NOT the "pos,rot after manual +90 yaw change", sorry for the confusion. I just have it on camera)
 
-What happens if were to just rotate that? We would be off by a lot. See my image. You cannot just rotate to yaw=90 and expect things to be the same.
-(This is not printed in the output here, BTW, it is NOT the "pos,rot after manual +90 yaw change", sorry for the confusion. I just have it on camera)
-
-Thus, the last position listed is for a yaw=90 case which CAN grip the seed. But it requires a much different position.
-Thus our function f must be such that:
+Thus, the last position listed is for a yaw=90 case which CAN grip the seed. But it requires a much different position. Thus our function f must be such that:
 
 ```
-f(cx,cy, cz, -88.0708, 8.7017, -159.0875)   = (0.0499, 0.0661, -0.1632)
+f(cx, cy, cz, -88.0708, 8.7017, -159.0875)  = (0.0499, 0.0661, -0.1632)
 f(cx, cy, cz, 89.4014, -11.0428, -176.7663) = (0.0525, 0.0639, -0.1642)
 ```
 
-and these are NOT equal, despite having the same camera points! But the point is, for the SAME CAMERA POSITION, SAME SEED, these are the angles that work.
+and these are NOT equal, despite having the same camera points! But the point is, for the SAME CAMERA POSITION, SAME SEED, these are the angles that work. Thus, given these camera points, plus a target yaw, we infer desired pitch and roll. Then all that is needed is to call this function to get the actual robot positions that will work.
+
+These are subtle points.
+
+- If you just rotate a gripper, the position of the robot in `x,y,z` should be the same.
+- But if you want to pick up a seed, some additional adjustment is needed in pitch, roll and additional movement (due to "rotation mechanisms..." for lack of a better description) and THAT is where the different robot positions result from.
 
 
 ## Case 2, Different Camera Points
+
+I was going to do this, but it is kind of redundant. Basically, if we are given a seed and a gripper that at yaw=-90 can pick it up, if we just change yaw to +90, the robot position does not actually change. But the seed must be shifted to allow the robot to grip it at the current gripper. Thus the camera points are different, even if the robot targets are the same, i.e.:
+
+```
+f(cx, cy, cz, -90, pitch, roll) = f(cx', cy', cz', +90, pitch, roll)
+```
+
+But isn't this implied by the first case? The first case clearly shows the motivation for automatic trajectory collection of data.
