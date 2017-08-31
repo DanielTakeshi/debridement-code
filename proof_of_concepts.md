@@ -21,18 +21,17 @@ pos,rot +90 yaw:
 I kept a seed in the same spot. The first position listed, with yaw=-90 (actually -88.0708...), is for a yaw=-90 position which can grip the seed.
 
 What happens if were to just rotate that? We would be off by a lot. See my image. You cannot just rotate to yaw=90 and expect things to be the same.
-(This is not printed in the output here, BTW, it is NOT the "pos,rot after manual +90 yaw change", sorry for the confusion. I just have it on camedra)
+(This is not printed in the output here, BTW, it is NOT the "pos,rot after manual +90 yaw change", sorry for the confusion. I just have it on camera)
 
 Thus, the last position listed is for a yaw=90 case which CAN grip the seed. But it requires a much different position.
 Thus our function f must be such that:
 
 ```
-f(cx,cy,cz,yaw,pitch,roll) = (0.0499, 0.0661, -0.1632)
-
-f(cx,cy,cz,yaw',pitch',roll') = (0.0525, 0.0639, -0.1642)
+f(cx,cy, cz, -88.0708, 8.7017, -159.0875)   = (0.0499, 0.0661, -0.1632)
+f(cx, cy, cz, 89.4014, -11.0428, -176.7663) = (0.0525, 0.0639, -0.1642)
 ```
 
-and these are NOT equal, despite having the same camera points!
+and these are NOT equal, despite having the same camera points! But the point is, for the SAME CAMERA POSITION, SAME SEED, these are the angles that work.
 
 
 ## Case 2, Different Camera Points
