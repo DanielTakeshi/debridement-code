@@ -422,8 +422,8 @@ if __name__ == "__main__":
         args['d'] = d
         args['arm'] = arm
         args['guidelines_dir'] = directory
-        args['z_offset'] = 0.003
-        args['z_offset_home'] = 0.020
+        args['z_offset'] = 0.002
+        args['z_offset_home'] = 0.010
         args['interpolation_interval'] = 20
         args['require_negative_roll'] = True
 

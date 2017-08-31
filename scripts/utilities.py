@@ -65,7 +65,7 @@ def pickle_to_list(filename):
  
 
 def call_wait_key(nothing=None):
-    """ I have an ESC which helps me exit program. """
+    """ Call this like: `utils.call_wait_key( cv2.imshow(...) )`. """
     ESC_KEYS = [27, 1048603]
     key = cv2.waitKey(0)
     if key in ESC_KEYS:

@@ -30,7 +30,7 @@ import os
 import pickle
 import sys
 import tfx
-import utilities
+import utilities as utils
 np.set_printoptions(suppress=True)
 
 ###########################
@@ -43,7 +43,7 @@ ESC_KEYS = [27, 1048603]
 
 # Adjust carefully!!
 CLOSE_ANGLE    = 25      # I think 25 is good for pumpkin, 10 for sunflower.
-TOPK_CONTOURS  = 9       # I usually do 8, for 8 seeds.
+TOPK_CONTOURS  = 1       # I usually do 8, for 8 seeds.
 INTERPOLATE    = True    # We thought `False` would be faster but alas it doesn't even go to the locations.
 SPEED_CLASS    = 'Fast'  # See `measure_speeds.py` for details.
 
@@ -54,7 +54,7 @@ PARAMETERS   = pickle.load(open('config/mapping_results/manual_params_matrices_v
 # Rotations and positions.
 # [   0.07827103  -12.19706825 -169.63700296]
 HOME_POS     = [0.00, 0.06, -0.13]
-ROTATION     = utilities.get_average_rotation(VERSION_INPUT)
+ROTATION     = utils.get_average_rotation(VERSION_INPUT)
 TFX_ROTATION = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
 # Saving stuff
@@ -114,7 +114,7 @@ def motion_planning(contours_by_size, img, arm, rotations):
     # If good, SAVE IT!!! This protects me in case of poor perception causing problems.
     trial = len([fname for fname in os.listdir(IMAGE_DIR) if '.png' in fname])
     cv2.imshow("Top-K contours (exit if not looking good), trial index is {}".format(trial), img_for_drawing)
-    utilities.call_wait_key()
+    utils.call_wait_key()
     cv2.imwrite(IMAGE_DIR+"/im_"+str(trial).zfill(3)+".png", img_for_drawing)
     cv2.destroyAllWindows()
 
@@ -123,7 +123,7 @@ def motion_planning(contours_by_size, img, arm, rotations):
     print("\nHere's where we'll be visiting (left_pixels, robot_point):")
     for left_pixels in places_to_visit:
         robot_points_to_visit.append(
-                utilities.left_pixel_to_robot_prediction(
+                utils.left_pixel_to_robot_prediction(
                         left_pt=left_pixels,
                         params=PARAMETERS,
                         better_rf=RF_REGRESSOR,
@@ -141,24 +141,85 @@ def motion_planning(contours_by_size, img, arm, rotations):
     for (robot_pt, rot) in zip(robot_points_to_visit, rotations):
         # Go to the point. Note: switch rotation **first**?
         pos = [robot_pt[0], robot_pt[1], robot_pt[2]+ZOFFSET_SAFETY]
-        utilities.move(arm, HOME_POS, rot, SPEED_CLASS) 
-        utilities.move(arm, pos,      rot, SPEED_CLASS)
+        utils.move(arm, HOME_POS, rot, SPEED_CLASS) 
+        utils.move(arm, pos,      rot, SPEED_CLASS)
 
         # Lower, close, and raise the end-effector.
         pos[2] -= ZOFFSET_SAFETY
-        utilities.move(arm, pos, rot, SPEED_CLASS)
+        utils.move(arm, pos, rot, SPEED_CLASS)
         arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2) # Need >=2 seconds!
         pos[2] += ZOFFSET_SAFETY
-        utilities.move(arm, pos, rot, SPEED_CLASS)
+        utils.move(arm, pos, rot, SPEED_CLASS)
 
         # Back to the home position.
-        utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
+        utils.move(arm, HOME_POS, rot, SPEED_CLASS)
         arm.open_gripper(degree=90, time_sleep=2) # Need >=2 seconds!
+
+
+def get_single_contour_center(image, contours):
+    """ Assuming there is _one_ contour to return, we find it (return as a list). """
+    for i,(cX,cY,approx,peri) in enumerate(contours):  
+        if utils.filter_point(cX,cY, xlower=700, xupper=1000, ylower=500, yupper=1000):
+            continue
+        cv2.circle(img=image, center=(cX,cY), radius=50, color=(0,0,255), thickness=1)
+        cv2.circle(img=image, center=(cX,cY), radius=4, color=(0,0,255), thickness=-1)
+        cv2.drawContours(image=image, contours=[approx], contourIdx=-1, color=(0,255,0), thickness=3)
+        cv2.imshow("ESC if duplicate/undesired, other key to proceed", image)
+        firstkey = cv2.waitKey(0) 
+        if firstkey not in utils.ESC_KEYS:
+            return [cX,cY]
+
+
+def proof_of_concept_part_one(left_im, right_im, left_contours, right_contours, arm):
+    """ 
+    See my notes. I'm effectively trying to argue why my DL way with automatic trajectory
+    collection will work. Maybe this will work as a screenshot or picture sequence in an
+    eventual paper? I hope ...
+    """
+    center_left  = get_single_contour_center(left_im,  left_contours)
+    center_right = get_single_contour_center(right_im, right_contours)
+    cv2.destroyAllWindows()
+    camera_pt = utils.camera_pixels_to_camera_coords(center_left, center_right)
+    print("(left, right) = ({}, {})".format(center_left, center_right))
+    print("(cx,cy,cz) = ({:.4f}, {:.4f}, {:.4f})".format(*camera_pt))
+
+    # Get rotation set to -90 to start.
+    pos, rot = utils.lists_of_pos_rot_from_frame(arm.get_current_cartesian_position())
+    utils.move(arm, pos, [-90, 10, -170], 'Slow') 
+
+    # Now do some manual movement.
+    arm.open_gripper(90)
+    utils.call_wait_key( cv2.imshow("(left image) move to point keeping angle roughly -90)", left_im) )
+    pos, rot = utils.lists_of_pos_rot_from_frame(arm.get_current_cartesian_position())
+    utils.move(arm, pos, [-90, 10, -170], 'Slow')  # Because we probably adjusted angle by mistake.
+    pos2, rot2 = utils.lists_of_pos_rot_from_frame(arm.get_current_cartesian_position())
+
+    # At this point, pos, rot should be the -90 degree angle version which can grip this.
+    print("pos,rot -90 yaw:\n({:.4f}, {:.4f}, {:.4f}), ({:.4f}, {:.4f}, {:.4f})".format(
+        pos2[0],pos2[1],pos2[2],rot2[0],rot2[1],rot2[2]))
+
+    # Next, let's MANUALLY move to the reverse angle, +90. This SHOULD use a different position.
+    # This takes some practice to figure out a good location. Also, the reason for manual movement
+    # is that when I told the code to go to +90 yaw, it was going to +180 for some reason ...
+    utils.call_wait_key( cv2.imshow("(left image) move to +90 where it can grip seed)", left_im) )
+    pos3, rot3 = utils.lists_of_pos_rot_from_frame(arm.get_current_cartesian_position())
+    print("pos,rot after manual +90 yaw change:\n({:.4f}, {:.4f}, {:.4f}), ({:.4f}, {:.4f}, {:.4f})".format(pos3[0],pos3[1],pos3[2],rot3[0],rot3[1],rot3[2]))
+
+    # Automatic correction in case we made slight error.
+    utils.move(arm, pos3, [90, 0, -165], 'Slow') 
+    pos4, rot4 = utils.lists_of_pos_rot_from_frame(arm.get_current_cartesian_position())
+
+    # Now pos, rot should be the +90 degree angle version which can grip this.
+    print("pos,rot +90 yaw:\n({:.4f}, {:.4f}, {:.4f}), ({:.4f}, {:.4f}, {:.4f})".format(
+        pos4[0],pos4[1],pos4[2],rot4[0],rot4[1],rot4[2]))
+
+    # And thus, this is case 1. SAME CAMERA POINT since we haven't moved the seed at all.
+    # But this means we don't have the same ROBOT point that can grip the seed!!
 
 
 if __name__ == "__main__":
     """ See the top of the file for program-wide arguments. """
-    arm, _, d = utilities.initializeRobots(sleep_time=2)
+    arm, _, d = utils.initializeRobots(sleep_time=2)
     arm.home()
     arm.close_gripper()
     print("arm home: {}".format(arm.get_current_cartesian_position()))
@@ -176,12 +237,21 @@ if __name__ == "__main__":
     #        (-45, -12, -170),
     #        (-180, -12, -170)
     #]
-    rotations = [ (-90, 10, -170) for i in range(9)]
-    utilities.show_images(d)
-    motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
+
+    utils.show_images(d)
+
+    #rotations = [ (-90, 10, -170) for i in range(9)]
+    #motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
 
     ## Test which rotations make sense.
     #for rot in rotations:
     #    print("we are moving to rot {}".format(rot))
     #    utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
     #    time.sleep(3)
+
+    # Test proof of concept of the need for the automatic trajectory collection.
+    proof_of_concept_part_one(d.left_image.copy(), 
+                              d.right_image.copy(), 
+                              d.left_contours, 
+                              d.right_contours, 
+                              arm)
