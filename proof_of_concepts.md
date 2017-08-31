@@ -36,6 +36,14 @@ These are subtle points.
 
 Thus there are really two extra sources of uncertainty in the robot position.
 
+For training, we want to gather a bunch of data of the form
+
+```
+(cx, cy, cz, rx, ry, rz, yaw, pitch, roll)
+```
+
+Yes, the pitch and roll will be input to the function. But I am actually inferring them from the yaw. This is ONLY to get them to grip the seeds correctly.
+
 
 ## Case 2, Different Camera Points
 

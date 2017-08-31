@@ -43,8 +43,8 @@ class DataCollector:
 
         # To get a bounding box of points, to filter away any nonsense.
         # For the initial open loop policy for the tissues that Steve gave me.
-        self.lx, self.ly, self.lw, self.lh = 625, 40, 850, 800        
-        self.rx, self.ry, self.rw, self.rh = 550, 40, 850, 820
+        self.lx, self.ly, self.lw, self.lh = 675, 50, 750, 750
+        self.rx, self.ry, self.rw, self.rh = 600, 75, 750, 750
         self.left_apply_bbox  = True
         self.right_apply_bbox = True
 

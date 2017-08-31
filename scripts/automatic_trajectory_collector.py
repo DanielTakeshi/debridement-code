@@ -72,10 +72,10 @@ class AutoTrajCollector:
             lower = np.array([110, 90, 90])
             upper = np.array([180, 255, 255])
         else:
-            lower = np.array([110, 80, 80])
+            lower = np.array([110, 70, 70])
             upper = np.array([180, 255, 255])
 
-        image = cv2.medianBlur(image, 9)
+        #image = cv2.medianBlur(image, 9)
         image = cv2.bilateralFilter(image, 7, 13, 13)
 
         hsv   = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
@@ -323,12 +323,12 @@ def collect_guidelines(arm, d, directory):
     info = {}
     info['min_yaw']   = -90
     info['max_yaw']   =  90
-    info['min_pitch'] =  -5
-    info['max_pitch'] =  15
+    info['min_pitch'] = -15
+    info['max_pitch'] =  25
     info['roll_neg_ubound'] = -150 # (-180, roll_neg_ubound)
     info['roll_pos_lbound'] =  150 # (roll_pos_lbound, 180)
-    info['min_roll'] = -175
-    info['max_roll'] = -160
+    info['min_roll'] = -180
+    info['max_roll'] = -150
 
     # Move the arm to positions to determine approximately safe ranges for x,y,z values.
     # And to be clear, all the `pos_{lr,ll,ul,ur}` are in robot coordinates.
@@ -422,13 +422,13 @@ if __name__ == "__main__":
         args['d'] = d
         args['arm'] = arm
         args['guidelines_dir'] = directory
-        args['z_offset'] = 0.002
-        args['z_offset_home'] = 0.010
+        args['z_offset'] = 0.001
+        args['z_offset_home'] = 0.005
         args['interpolation_interval'] = 20
         args['require_negative_roll'] = True
 
         # THESE ARE THE MAIN VALUES TO CHANGE!!
-        args['num_trajs'] = 5
+        args['num_trajs'] = 10
         args['rots_per_stoppage'] = 3
 
         # Build the ATC and then collect trajectories!

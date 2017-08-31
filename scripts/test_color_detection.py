@@ -65,14 +65,14 @@ def detect_color_hsv(frame):
             'green':  60,
             'blue':   120
     }
-    lower = np.array([110,  80,  80])
+    lower = np.array([110,  70,  70])
     upper = np.array([180, 255, 255])
 
     # Convert from RGB (not BGR) to hsv and apply our chosen thresholding.
     frame = cv2.bilateralFilter(frame, 7, 13, 13)
     utilities.call_wait_key(cv2.imshow("After first filter", frame))
-    frame = cv2.medianBlur(frame, 9)
-    utilities.call_wait_key(cv2.imshow("After second filter", frame))
+    #frame = cv2.medianBlur(frame, 9)
+    #utilities.call_wait_key(cv2.imshow("After second filter", frame))
     hsv   = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
     mask  = cv2.inRange(hsv, lower, upper)
     utilities.call_wait_key(cv2.imshow("Does the mask make sense?", mask))
@@ -146,10 +146,10 @@ if __name__ == "__main__":
     arm.close_gripper()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
 
-    #utilities.call_wait_key(cv2.imshow("Bounding Box for Contours (LEFT IMAGE)", d.left_image_bbox))
-    #frame = d.left_image.copy()
+    utilities.call_wait_key(cv2.imshow("Bounding Box for Contours (LEFT IMAGE)", d.left_image_bbox))
+    frame = d.left_image.copy()
 
-    utilities.call_wait_key(cv2.imshow("Bounding Box for Contours (RIGHT IMAGE)", d.right_image_bbox))
+    utilities.call_wait_key(cv2.imshow("RIGHT IMAGE", d.right_image_bbox))
     frame = d.right_image.copy()
 
     res = detect_color_hsv(frame)
