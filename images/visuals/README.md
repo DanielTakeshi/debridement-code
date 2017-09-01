@@ -99,6 +99,7 @@ std:    2.51166442344
 
 # Gripper, with Auto Trajectories
 
+Thus, 20 through 24 have yaw roughly 90, 45, 0, -45, -90.
 
 ## Version 20
 

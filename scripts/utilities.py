@@ -52,7 +52,7 @@ def get_num_stuff_in_pickle_file(filename):
 
 
 def pickle_to_list(filename):
-    """ Counting stuff in a pickle file! """
+    """ Loading a pickle file to a list. """
     f = open(filename,'r')
     data = []
     while True:
@@ -61,6 +61,7 @@ def pickle_to_list(filename):
         except EOFError:
             break
     assert len(data) >= 1
+    f.close()
     return data
  
 
