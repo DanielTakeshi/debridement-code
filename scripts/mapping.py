@@ -30,8 +30,8 @@ C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
 def train_network(X_train, Y_train):
     """ 
     Trains a network to predict f(cx,cy,cz,yaw) = (rx,ry,rz). Here, `X_train` is 
-    ALREADY normalized. X_train has shape (N,4), Y_train has shape (N,3). Thus, for
-    keras, we use `input_dim = 4` since that is not including the batch size.
+    ALREADY normalized. X_train has shape (N,6), Y_train has shape (N,3). Thus, for
+    keras, we use `input_dim = 6` since that is not including the batch size.
 
     During prediction and test-time applications, don't forget to normalize!!!!!
 
@@ -44,11 +44,12 @@ def train_network(X_train, Y_train):
     X_train = X_train[shuffle]
     Y_train = Y_train[shuffle]
 
+    input_dim = X_train.shape[1]
     epochs = 50
     batch_size = 32
 
     model = Sequential()
-    model.add(Dense(50, activation='relu', input_dim=4))
+    model.add(Dense(50, activation='relu', input_dim=input_dim))
     model.add(Dense(50, activation='relu'))
     model.add(Dense(3,  activation=None))
     model.compile(optimizer='adam', loss='mse')
@@ -427,17 +428,17 @@ if __name__ == "__main__":
                 robot_points_3d=robot_3d,
                 debug=True)
 
-    # --------------------------------------------------
-    # For auto, get lots of stuff, e.g. deep networks.
-    # For the rotations, keep only the 0th column (yaw).
-    # --------------------------------------------------
+    # ------------------------------------------------------------------------------------
+    # For auto, get lots of stuff, e.g. deep networks. 
+    # For the rotations, keep only the 0th column (yaw). EDIT: nope, let's use pitch/roll!
+    # ------------------------------------------------------------------------------------
     if args.collection == 'auto':
-        X_train = np.concatenate((points_3d, rotations_3d[:,0,np.newaxis]), axis=1) # (N,4)
+        X_train = np.concatenate((points_3d, rotations_3d), axis=1) # (N,6)
         X_mean  = np.mean(X_train, axis=0)
         X_std   = np.mean(X_train, axis=0)
         y_train = robot_3d.copy() # (N,3)
-        assert X_train.shape[1] == 4 and y_train.shape[1] == 3 and X_train.shape[0] == y_train.shape[0]
-        assert len(X_std) == len(X_mean) == 4
+        assert X_train.shape[1] == 6 and y_train.shape[1] == 3 and X_train.shape[0] == y_train.shape[0]
+        assert len(X_std) == len(X_mean) == 6
         X_train = (X_train - X_mean) / X_std
         modeldir = train_network(X_train, y_train)
 
