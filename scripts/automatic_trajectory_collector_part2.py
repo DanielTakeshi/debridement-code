@@ -102,7 +102,7 @@ if __name__ == "__main__":
     not change among different versions, since it's just matching circle centers.
 
     Then, clean up the data using various heuristics (see the method documentation for
-    detals). Then process it into a form that I need, and save it
+    details). Then process it into a form that I need, and save it.
     """
     params = pickle.load(open('config/mapping_results/manual_params_matrices_v00.p', 'r'))
     directory = 'traj_collector/'

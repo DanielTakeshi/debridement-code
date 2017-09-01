@@ -103,113 +103,6 @@ def get_good_contours(image, image_contours, max_num_add):
     return contours
 
 
-def test_calibration(args, arm, d, PARAMS, IMDIR, OUTPUT_FILE):
-    """
-    This will test calibration! Two main cases: either we simulate the right camera's
-    points from the left camera, or we track both of the cameras. I think tracking with
-    both cameras is best, so the easiest way is to go through all the right contours but
-    just track the ones that work, so progressively accumulate 36 (or 35...) values. Do
-    the same for the left image. Then, with this data, we redo the entire process but we
-    know we no longer have to do the repeated skipping I was doing.
-    """
-
-    # The right image will tell us how many contours we can expect (34, 35, 36??).
-    cv2.imwrite("images/right_image.jpg", d.right_image)
-    cv2.imwrite("images/left_image.jpg", d.left_image)
-    utils.call_wait_key(cv2.imshow("RIGHT camera, used for contours", d.right_image_proc))
-    utils.call_wait_key(cv2.imshow("left camera, used for contours", d.left_image_proc))
-
-    # Oh, btw we are going to use a fixed yaw here just because.
-    yaw = 0
-    info = pickle.load(open(args.guidelines_dir, 'r'))
-    pitch, roll = utils.get_interpolated_pitch_and_roll(yaw, info)
-    rotation = [yaw, pitch, roll]
-    print("Our rotation: {}".format(rotation))
-
-    # Don't forget to load our trained neural network!
-    f_network = load_model(PARAMS['modeldir'])
-    net_mean  = PARAMS['X_mean']
-    net_std   = PARAMS['X_std']
-
-    # PART ONE: Get the contours. Manual work here to cut down on boredom in the second part.
-    right_im = d.right_image.copy()
-    left_im = d.left_image.copy()
-    right_c = get_good_contours(right_im, d.right_contours, args.max_num_add)
-    cv2.destroyAllWindows()
-    left_c = get_good_contours(left_im, d.left_contours, args.max_num_add)
-    cv2.destroyAllWindows()
-    assert len(right_c) == len(left_c)
- 
-    # PART TWO: iterate through contours and drag the box around the end-effector location.
-    for i, (l_cnt, r_cnt) in enumerate(zip(left_c, right_c)):
-        lx,ly,_,_ = l_cnt
-        rx,ry,_,_ = r_cnt
-        camera_pt = np.array( utils.camera_pixels_to_camera_coords([lx,ly], [rx,ry]) )
-        net_input = (np.concatenate((camera_pt, np.array([yaw, pitch, roll])))).reshape((1,6))
-
-        # Use the network here!! As usual the leading dimension is the "batch" size.
-        net_input = (net_input - net_mean) / net_std
-        predicted_pos = np.squeeze(f_network.predict(net_input)).tolist()
-        print("camera_pt: {}\npredicted_pos (before offsets): {}".format(camera_pt,predicted_pos))
-        assert net_input.shape == (1,6)
-        assert len(predicted_pos) == 3
-
-        # Use offsets.
-        predicted_pos[0] += args.x_offset
-        predicted_pos[1] += args.y_offset
-        predicted_pos[2] += args.z_offset
-
-        # Robot moves to that point and will likely be off. Let the camera refresh.
-        utils.move(arm, predicted_pos, rotation, 'Slow')
-        time.sleep(5)
-
-        # Update image (left, though it doesn't matter) and put center coords. Blue=Before, Red=AfteR.
-        updated_image_copy = (d.left_image).copy()
-        cv2.circle(img=updated_image_copy, center=(cX,cY), radius=6, color=(255,0,0), thickness=-1)
-        cv2.putText(img=updated_image_copy, 
-                    text="{}".format((cX,cY)), 
-                    org=(cX,cY), 
-                    fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
-                    fontScale=1, 
-                    color=(255,0,0), 
-                    thickness=2)
-
-        # Now we apply the callback and drag a box around the end-effector on the (updated!) image.
-        position = arm.get_current_cartesian_position()
-        window_name = "Moved to pred_pos {}. Click + drag box on end-eff.".format(predicted_pos)
-        cv2.namedWindow(window_name)
-        cv2.setMouseCallback(window_name, click_and_crop)
-        cv2.imshow(window_name, updated_image_copy)
-        key = cv2.waitKey(0)
-
-        # Now save the image with the next available index. It will contain the contours.
-        index = len(os.listdir(IMDIR))
-        cv2.imwrite(IMDIR+"/point_"+str(index).zfill(2)+".png", updated_image_copy)
-        cv2.destroyAllWindows()
-
-        # Get position and orientation of the arm, save (in a dictionary), & reset. 
-        # I.e. the target_pos is what the random forest predicted for the target position.
-        new_pos, new_rot = utils.lists_of_pos_rot_from_frame(
-                arm.get_current_cartesian_position()
-        )
-        data_pt = {'target_pos': predicted_pos,
-                   'target_rot': rotation,
-                   'actual_pos': new_pos,
-                   'actual_rot': new_rot,
-                   'center_target_pixels': (cX,cY),
-                   'center_actual_pixels': CENTER_OF_BOXES[-1]}
-        utils.storeData(OUTPUT_FILE, data_pt)
-
-        # Some stats for debugging, etc.
-        num_added += 1
-        print("contour {}, data_pt: {} (# added: {})".format(i, data_pt, num_added))
-        assert (2*num_added) == (2*len(CENTER_OF_BOXES)) == len(POINTS)
-
-    arm.home()
-    arm.close_gripper()
-    cv2.destroyAllWindows()
-
-
 if __name__ == "__main__":
     """ Set up a configuration here. SEE `images/README.md`. Use 2X for neural net stuff. """
 
@@ -242,4 +135,113 @@ if __name__ == "__main__":
     arm.home()
     arm.close_gripper()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
-    test_calibration(args, arm, d, PARAMS, IMDIR, OUTPUT_FILE)
+
+    ## ------------------------------------------------------------------------------------
+    ## This will test calibration! Two main cases: either we simulate the right camera's
+    ## points from the left camera, or we track both of the cameras. I think tracking with
+    ## both cameras is best, so the easiest way is to go through all the right contours but
+    ## just track the ones that work, so progressively accumulate 36 (or 35...) values. Do
+    ## the same for the left image. Then, with this data, we redo the entire process but we
+    ## know we no longer have to do the repeated skipping I was doing.
+    ##
+    ## Note: this used to be its own method, but I got confused about the callback code, 
+    ## and I'm in a bit of a rush, so sorry!
+    ## ------------------------------------------------------------------------------------
+
+    # The right image will tell us how many contours we can expect (34, 35, 36??).
+    cv2.imwrite("images/right_image.jpg", d.right_image)
+    cv2.imwrite("images/left_image.jpg", d.left_image)
+    utils.call_wait_key(cv2.imshow("RIGHT camera, used for contours", d.right_image_proc))
+    utils.call_wait_key(cv2.imshow("left camera, used for contours", d.left_image_proc))
+
+    # Oh, btw we are going to use a fixed yaw here just because.
+    yaw = 0
+    info = pickle.load(open(args.guidelines_dir, 'r'))
+    pitch, roll = utils.get_interpolated_pitch_and_roll(yaw, info)
+    rotation = [yaw, pitch, roll]
+    print("Our rotation: {}".format(rotation))
+
+    # Don't forget to load our trained neural network!
+    f_network = load_model(PARAMS['modeldir'])
+    net_mean  = PARAMS['X_mean']
+    net_std   = PARAMS['X_std']
+
+    # PART ONE: Get the contours. Manual work here to cut down on boredom in the second part.
+    right_im = d.right_image.copy()
+    left_im = d.left_image.copy()
+    right_c = get_good_contours(right_im, d.right_contours, args.max_num_add)
+    cv2.destroyAllWindows()
+    left_c = get_good_contours(left_im, d.left_contours, args.max_num_add)
+    cv2.destroyAllWindows()
+    assert len(right_c) == len(left_c)
+ 
+    # PART TWO: iterate through contours and drag the box around the end-effector location.
+    for ii, (l_cnt, r_cnt) in enumerate(zip(left_c, right_c)):
+        lx,ly,_,_ = l_cnt
+        rx,ry,_,_ = r_cnt
+        camera_pt = np.array( utils.camera_pixels_to_camera_coords([lx,ly], [rx,ry]) )
+        net_input = (np.concatenate((camera_pt, np.array([yaw, pitch, roll])))).reshape((1,6))
+
+        # Use the network here!! As usual the leading dimension is the "batch" size.
+        net_input = (net_input - net_mean) / net_std
+        predicted_pos = np.squeeze(f_network.predict(net_input)).tolist()
+        print("\ncamera_pt: {}  pred_robot_pos (no offsets): {}".format(
+            ['%.4f'%elem for elem in camera_pt], ['%4f'%elem for elem in predicted_pos]))
+        assert net_input.shape == (1,6)
+        assert len(predicted_pos) == 3
+
+        # Use offsets.
+        predicted_pos[0] += args.x_offset
+        predicted_pos[1] += args.y_offset
+        predicted_pos[2] += args.z_offset
+
+        # Robot moves to that point and will likely be off. Let the camera refresh.
+        utils.move(arm, predicted_pos, rotation, 'Slow')
+        time.sleep(5)
+
+        # Update image (left, though it doesn't matter) and put center coords. Blue=Before, Red=AfteR.
+        updated_image_copy = (d.left_image).copy()
+        cv2.circle(img=updated_image_copy, center=(lx,ly), radius=6, color=(255,0,0), thickness=-1)
+        cv2.putText(img=updated_image_copy, 
+                    text="{}".format((lx,ly)), 
+                    org=(lx,ly), 
+                    fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
+                    fontScale=1, 
+                    color=(255,0,0), 
+                    thickness=2)
+
+        # Now we apply the callback and drag a box around the end-effector on the (updated!) image.
+        position = arm.get_current_cartesian_position()
+        window_name = "Moved to pred_pos incl. offset {}. Click + drag box on end-eff.".format(predicted_pos)
+        cv2.namedWindow(window_name)
+        cv2.setMouseCallback(window_name, click_and_crop) # Clicks to this window are recorded!
+        cv2.imshow(window_name, updated_image_copy)
+        key = cv2.waitKey(0)
+
+        # Now save the image with the next available index. It will contain the contours.
+        index = len(os.listdir(IMDIR))
+        cv2.imwrite(IMDIR+"/point_"+str(index).zfill(2)+".png", updated_image_copy)
+        cv2.destroyAllWindows()
+
+        # Get position and orientation of the arm, save (in a dictionary), & reset. 
+        # I.e. the target_pos is what the random forest predicted for the target position.
+        new_pos, new_rot = utils.lists_of_pos_rot_from_frame(
+                arm.get_current_cartesian_position()
+        )
+        data_pt = {'target_pos': predicted_pos, # Includes offset, not sure if I should reset those...
+                   'target_rot': rotation,
+                   'actual_pos': new_pos,
+                   'actual_rot': new_rot,
+                   'center_target_pixels': (lx,ly),
+                   'center_actual_pixels': CENTER_OF_BOXES[-1]}
+        utils.storeData(OUTPUT_FILE, data_pt)
+
+        # Some stats for debugging, etc. This time, `i` really is `num_added`.
+        print("contour {}, data_pt: {}".format(ii, data_pt))
+        assert (2*(ii+1)) == (2*len(CENTER_OF_BOXES)) == len(POINTS)
+        arm.home() # TODO I need utils.home()...
+        time.sleep()
+
+    arm.home()
+    arm.close_gripper()
+    cv2.destroyAllWindows()

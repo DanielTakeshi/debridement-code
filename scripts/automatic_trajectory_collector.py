@@ -430,7 +430,7 @@ if __name__ == "__main__":
         args['require_negative_roll'] = True
 
         # THESE ARE THE MAIN VALUES TO CHANGE!!
-        args['num_trajs'] = 10
+        args['num_trajs'] = 25
         args['rots_per_stoppage'] = 3
 
         # Build the ATC and then collect trajectories!

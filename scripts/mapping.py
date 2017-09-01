@@ -44,7 +44,7 @@ def train_network(X_train, Y_train, X_mean, X_std):
     Y_train = Y_train[shuffle]
 
     N, input_dim = X_train.shape
-    epochs = 200
+    epochs = 400
     batch_size = 32
     val_split = 0.2
 
