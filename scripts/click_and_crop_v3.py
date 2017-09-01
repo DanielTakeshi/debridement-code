@@ -10,6 +10,14 @@ BE CAREFUL TO ACTUALLY DRAG SOMETHING, if you click once it will cause an assert
 
 THIS (version 3) IS FOR THE AUTOMATIC TRAJECTORY CASE. Use version 2 for the manual stuff.
 
+Example call:
+
+clear; clear; rm -r images/check_regressors_v23/; rm config/calibration_results/data_v23.p; \
+python scripts/click_and_crop_v3.py --version_out 23 \
+                                    --max_num_add 35 \
+                                    --z_offset 0.0 \
+                                    --fixed_yaw -45
+
 (c) September 2017 by Daniel Seita
 """
 
@@ -103,6 +111,15 @@ def get_good_contours(image, image_contours, max_num_add):
     return contours
 
 
+def sample_rotation(fixed_yaw):
+    if fixed_yaw is not None:
+        yaw = fixed_yaw
+    else:
+        yaw = np.random.uniform(low=-90, high=90)
+    pitch, roll = utils.get_interpolated_pitch_and_roll(yaw)
+    return np.array([yaw, pitch, roll])
+
+
 if __name__ == "__main__":
     """ Set up a configuration here. SEE `images/README.md`. Use 2X for neural net stuff. """
 
@@ -112,8 +129,9 @@ if __name__ == "__main__":
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
     pp.add_argument('--z_offset', type=float, default=0.002)
+    pp.add_argument('--fixed_yaw', type=float, help='If not provided, yaw randomly chosen in [-90,90]')
     pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
-    pp.add_argument('--simulate_right', type=int, default=0, help='1 if simulate right, 0 if false.')
+    pp.add_argument('--simulate_right', type=int, default=0, help='1 if simulate right, 0 if false')
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
     args = pp.parse_args()
 
@@ -128,13 +146,15 @@ if __name__ == "__main__":
     PARAMS = pickle.load(
             open('config/mapping_results/auto_params_matrices_v'+IN_VERSION+'.p', 'r')
     )
-    
+    rotation = sample_rotation(args.fixed_yaw)
+    print("Our starting rotation: {}".format(rotation))
+
     # Now get the robot arm initialized and test it out!
     arm, _, d = utils.initializeRobots()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
-    arm.home()
-    arm.close_gripper()
+    utils.home(arm, rot=rotation)
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
+    arm.close_gripper()
 
     ## ------------------------------------------------------------------------------------
     ## This will test calibration! Two main cases: either we simulate the right camera's
@@ -153,13 +173,6 @@ if __name__ == "__main__":
     cv2.imwrite("images/left_image.jpg", d.left_image)
     utils.call_wait_key(cv2.imshow("RIGHT camera, used for contours", d.right_image_proc))
     utils.call_wait_key(cv2.imshow("left camera, used for contours", d.left_image_proc))
-
-    # Oh, btw we are going to use a fixed yaw here just because.
-    yaw = 0
-    info = pickle.load(open(args.guidelines_dir, 'r'))
-    pitch, roll = utils.get_interpolated_pitch_and_roll(yaw, info)
-    rotation = [yaw, pitch, roll]
-    print("Our rotation: {}".format(rotation))
 
     # Don't forget to load our trained neural network!
     f_network = load_model(PARAMS['modeldir'])
@@ -180,7 +193,7 @@ if __name__ == "__main__":
         lx,ly,_,_ = l_cnt
         rx,ry,_,_ = r_cnt
         camera_pt = np.array( utils.camera_pixels_to_camera_coords([lx,ly], [rx,ry]) )
-        net_input = (np.concatenate((camera_pt, np.array([yaw, pitch, roll])))).reshape((1,6))
+        net_input = (np.concatenate((camera_pt, rotation))).reshape((1,6))
 
         # Use the network here!! As usual the leading dimension is the "batch" size.
         net_input = (net_input - net_mean) / net_std
@@ -239,9 +252,13 @@ if __name__ == "__main__":
         # Some stats for debugging, etc. This time, `i` really is `num_added`.
         print("contour {}, data_pt: {}".format(ii, data_pt))
         assert (2*(ii+1)) == (2*len(CENTER_OF_BOXES)) == len(POINTS)
-        arm.home() # TODO I need utils.home()...
-        time.sleep()
+        utils.home(arm, rot=rotation)
 
-    arm.home()
+        # Update the rotation (if using fixed yaw, this uses the same exact rotation).
+        rotation = sample_rotation(args.fixed_yaw)
+        utils.home(arm, rot=rotation)
+        time.sleep(1)
+
+    utils.home(arm, rot=rotation)
     arm.close_gripper()
     cv2.destroyAllWindows()

@@ -204,6 +204,14 @@ def filter_point(x, y, xlower, xupper, ylower, yupper):
     return ignore
 
 
+def home(arm, rot=None):
+    """ No more `arm.home()` calls!!! """
+    if rot is not None:
+        move(arm, pos=[0.00, 0.06, -0.15], rot=rot, SPEED_CLASS='Fast')
+    else:
+        move(arm, pos=[0.00, 0.06, -0.15], rot=[0,10,-165], SPEED_CLASS='Fast')
+
+
 def move(arm, pos, rot, SPEED_CLASS):
     """ Handles the different speeds we're using.
     
@@ -246,18 +254,20 @@ def lists_of_pos_rot_from_frame(frame):
     return pos, rot
 
 
-def get_interpolated_pitch_and_roll(yaw, info):
+def get_interpolated_pitch_and_roll(yaw, info=None):
     """ We're making the simplifying assumptions that we can use interpolated pitch 
     and roll values from a given yaw value.
 
     Here, `info` should be the dictionary from `traj_collector/guidelines.p`.
+
+    Edit: argh, never mind, I had to set the `info` stuff to a larger range.
     """
-    min_y = info['min_yaw']
-    max_y = info['max_yaw']
-    min_p = info['min_pitch']
-    max_p = info['max_pitch']
-    min_r = info['min_roll']
-    max_r = info['max_roll']
+    min_y =  -90
+    max_y =   90
+    min_p =    0
+    max_p =   10
+    min_r = -170
+    max_r = -165
 
     range_y = max_y - min_y
     range_p = max_p - min_p

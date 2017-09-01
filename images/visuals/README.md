@@ -94,3 +94,85 @@ max:    12.7279220614
 min:    1.0
 std:    2.51166442344
 ```
+
+
+
+# Gripper, with Auto Trajectories
+
+
+## Version 20
+
+Yaw is roughly +90
+
+```
+Distances among the pixels, (x,y) only:
+mean:   22.5858126052
+median: 25.0
+max:    53.310411741
+min:    2.2360679775
+std:    13.8644843432
+```
+
+## Version 21
+
+Yaw is roughly +45
+
+```
+Distances among the pixels, (x,y) only:
+mean:   21.5303981882
+median: 21.0
+max:    39.1152144312
+min:    7.07106781187
+std:    7.48420887129
+```
+
+## Version 22
+
+Yaw is roughly 0
+
+```
+Distances among the pixels, (x,y) only:
+mean:   22.7911384968
+median: 22.6715680975
+max:    39.4461658466
+min:    11.401754251
+std:    5.93474084341
+```
+
+## Version 23
+
+Yaw is roughly -45
+
+```
+Distances among the pixels, (x,y) only:
+mean:   28.3757370169
+median: 29.4108823397
+max:    38.9486841883
+min:    18.3575597507
+std:    4.79170177419
+```
+
+(This one seems a bit weird, has errors that are more uniform. Well, I guess human guidance should help ...)
+
+
+## Version 24
+
+Yaw is roughly -90
+
+```
+Distances among the pixels, (x,y) only:
+mean:   26.7276890758
+median: 22.0227155455
+max:    47.8852795753
+min:    12.7279220614
+std:    9.10897874673
+```
+
+## Version 25
+
+Yaw is randomly chosen uniformly in [-90, 90].
+
+
+```
+
+```
