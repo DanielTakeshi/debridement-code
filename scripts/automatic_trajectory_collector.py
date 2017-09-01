@@ -222,7 +222,9 @@ class AutoTrajCollector:
         traj_index = len(traj_dirs)
         print("\nNow collecting trajectories. Starting index: {}\n".format(traj_index))
         
-        for traj in range(self.num_trajs):
+        # Note that `traj_index` is what I use for tracking in case I want to resume without
+        # destroying existing trajectory information.
+        for _ in range(self.num_trajs):
 
             # Get directories/stats set up, and move to a random home position w/correct angles.
             this_dir = 'traj_collector/traj_'+str(traj_index).zfill(4)+'/'
@@ -241,7 +243,7 @@ class AutoTrajCollector:
             yy = np.random.uniform(low=self.info['min_y'], high=self.info['max_y'])
             zz = self._get_z_from_xy_values(xx, yy)
             target_position = [xx, yy, zz + self.z_offset] 
-            print("\n\nTrajectory {}, target position: {}".format(traj, target_position))
+            print("\n\nTrajectory {}, target position: {}".format(traj_index, target_position))
 
             # ------------------------------------------------------------------
             # Follows the `linear_interpolation` movement code to take incremental sets.

@@ -52,6 +52,7 @@ def filter_points_in_results(camera_map, directory):
     clean_data = []
     traj_dirs = sorted([dd for dd in os.listdir(directory) if 'traj_' in dd])
     print("len(traj_dirs): {}".format(traj_dirs))
+    total = 0
 
     for td in traj_dirs:
         traj_data = pickle.load(open(directory+td+'/traj_poses_list.p', 'r'))
@@ -59,6 +60,7 @@ def filter_points_in_results(camera_map, directory):
         num_td = 0
         
         for (i, val) in enumerate(traj_data):
+            total += 1
             isclean, dist = is_this_clean(val, camera_map)
             if isclean:
                 print("{}  CLEAN : {} (dist {})".format(str(i).zfill(3), val, dist)) # Clean
@@ -70,6 +72,7 @@ def filter_points_in_results(camera_map, directory):
         print("dir {}, len(raw_data) {}, len(clean_data) {}\n".format(td, len(traj_data), num_td))
 
     print("\nNow returning clean data w/{} elements".format(len(clean_data)))
+    print("{} total points, i.e. a clean rate of {:.4f}".format(total, len(clean_data)/float(total)))
     return clean_data
 
 
