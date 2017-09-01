@@ -27,33 +27,58 @@ C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
 
 
-def train_network(X_train, Y_train):
+def train_network(X_train, Y_train, X_mean, X_std):
     """ 
     Trains a network to predict f(cx,cy,cz,yaw) = (rx,ry,rz). Here, `X_train` is 
     ALREADY normalized. X_train has shape (N,6), Y_train has shape (N,3). Thus, for
-    keras, we use `input_dim = 6` since that is not including the batch size.
+    keras, we use `input_dim = 6` since that is not including the batch size. Shuffle 
+    the data beforehand, since Keras will take the last % of the input data we pass 
+    as the fixed, held-out validation set.
 
-    During prediction and test-time applications, don't forget to normalize!!!!!
-
-    Shuffle the data beforehand, since Keras will take the last % of the input data
-    we pass as the fixed, held-out validation set.
+    DURING PREDICTION AND TEST-TIME APPLICATIONS, DON'T FORGET TO NORMALIZE!!!!!
 
     https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model
     """
     shuffle = np.random.permutation(X_train.shape[0])
-    X_train = X_train[shuffle]
+    X_train = X_train[shuffle] # Already normalized!
     Y_train = Y_train[shuffle]
 
-    input_dim = X_train.shape[1]
-    epochs = 50
+    N, input_dim = X_train.shape
+    epochs = 200
     batch_size = 32
+    val_split = 0.2
 
     model = Sequential()
-    model.add(Dense(50, activation='relu', input_dim=input_dim))
-    model.add(Dense(50, activation='relu'))
+    model.add(Dense(300, activation='relu', input_dim=input_dim))
+    model.add(Dense(300, activation='relu'))
+    model.add(Dense(300, activation='relu'))
     model.add(Dense(3,  activation=None))
     model.compile(optimizer='adam', loss='mse')
-    model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, validation_split=0.2)
+    model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, validation_split=val_split)
+    
+    val_start = int(N*(1.-val_split))
+    X_valid = X_train[val_start:, :]
+    Y_valid = Y_train[val_start:, :]
+    predictions = model.predict(X_valid)
+    ms_errors = 0
+    num_valids = X_valid.shape[0]
+
+    with open("config/keras_results/simple_{}epochs.txt".format(epochs), "w") as text_file:
+        for index in range(num_valids):
+            data = X_valid[index, :]
+            targ = Y_valid[index, :]
+            pred = predictions[index, :]
+            data = (data * X_std) + X_mean   # Un-normalize the data!
+            mse  = np.linalg.norm(pred-targ) ** 2
+            ms_errors += mse
+
+            text_file.write("[{:.3f}, {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:.3f}]   ===>   [{:.3f}, {:.3f}, {:.3f}],  actual: [{:.3f}, {:.3f}, {:.3f}]  (mse: {:4f})\n".format(data[0],data[1],data[2],data[3],data[4],data[5], pred[0],pred[1],pred[2],targ[0],targ[1],targ[2], mse))
+    
+    print("X_mean: {}".format(X_mean))
+    print("X_std: {}".format(X_std))
+    print("val_start: {}".format(val_start))
+    print("num_valids: {}".format(num_valids))
+    print("mse as I computed it: {}".format(ms_errors / num_valids))
 
     modeldir = 'config/keras_results/simple_{}epochs.h5'.format(epochs)
     model.save(modeldir)
@@ -431,16 +456,17 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------
     # For auto, get lots of stuff, e.g. deep networks. 
     # For the rotations, keep only the 0th column (yaw). EDIT: nope, let's use pitch/roll!
+    # Just remember that the input is (cx, cy, cz, yaw, pitch, roll), IN THAT ORDER!!
     # ------------------------------------------------------------------------------------
     if args.collection == 'auto':
         X_train = np.concatenate((points_3d, rotations_3d), axis=1) # (N,6)
-        X_mean  = np.mean(X_train, axis=0)
-        X_std   = np.mean(X_train, axis=0)
+        X_mean = np.mean(X_train, axis=0)
+        X_std = np.std(X_train, axis=0)
         y_train = robot_3d.copy() # (N,3)
         assert X_train.shape[1] == 6 and y_train.shape[1] == 3 and X_train.shape[0] == y_train.shape[0]
         assert len(X_std) == len(X_mean) == 6
         X_train = (X_train - X_mean) / X_std
-        modeldir = train_network(X_train, y_train)
+        modeldir = train_network(X_train, y_train, X_mean, X_std)
 
     # -----------------------------------------------------------------------------------
     # Develop correspondence between left and right camera pixels. I assume in real

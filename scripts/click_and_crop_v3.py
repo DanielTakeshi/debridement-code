@@ -145,18 +145,19 @@ def test_calibration(args, arm, d, PARAMS, IMDIR, OUTPUT_FILE):
         lx,ly,_,_ = l_cnt
         rx,ry,_,_ = r_cnt
         camera_pt = np.array( utils.camera_pixels_to_camera_coords([lx,ly], [rx,ry]) )
-        net_input = (np.concatenate((camera_pt, np.array([yaw])))).reshape((1,4))
+        net_input = (np.concatenate((camera_pt, np.array([yaw, pitch, roll])))).reshape((1,6))
 
         # Use the network here!! As usual the leading dimension is the "batch" size.
         net_input = (net_input - net_mean) / net_std
-        assert net_input.shape == (1,4)
         predicted_pos = np.squeeze(f_network.predict(net_input)).tolist()
+        print("camera_pt: {}\npredicted_pos (before offsets): {}".format(camera_pt,predicted_pos))
+        assert net_input.shape == (1,6)
         assert len(predicted_pos) == 3
-        print(l_cnt)
-        print(r_cnt)
-        print(camera_pt)
-        print(predicted_pos)
-        sys.exit()
+
+        # Use offsets.
+        predicted_pos[0] += args.x_offset
+        predicted_pos[1] += args.y_offset
+        predicted_pos[2] += args.z_offset
 
         # Robot moves to that point and will likely be off. Let the camera refresh.
         utils.move(arm, predicted_pos, rotation, 'Slow')
@@ -215,10 +216,10 @@ if __name__ == "__main__":
     pp = argparse.ArgumentParser()
     pp.add_argument('--version_in', type=int, default=0, help='For now, it\'s 0')
     pp.add_argument('--version_out', type=int, help='SEE `images/README.md`.')
-    pp.add_argument('--arm1_xoffset', type=float, default=0.000)
-    pp.add_argument('--arm1_yoffset', type=float, default=0.000)
-    pp.add_argument('--arm1_zoffset', type=float, default=0.002)
-    pp.add_argument('--max_num_add', type=int, default=35)
+    pp.add_argument('--x_offset', type=float, default=0.000)
+    pp.add_argument('--y_offset', type=float, default=0.000)
+    pp.add_argument('--z_offset', type=float, default=0.002)
+    pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
     pp.add_argument('--simulate_right', type=int, default=0, help='1 if simulate right, 0 if false.')
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
     args = pp.parse_args()

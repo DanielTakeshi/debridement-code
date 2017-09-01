@@ -1,6 +1,7 @@
 images/
 old_images/
 camera_location/
+traj_collector/traj_*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
