@@ -20,3 +20,9 @@ Scissors:
 - Version 10: rigid body only.
 - Version 11: rigid body + bad random forest.
 - Version 12: rigid body + good random forest.
+
+
+Gripper (auto collection):
+
+- Versions 20 through 25: see `images/visuals/README.md` for details.
+- Files named `data_human_guided_vXY.p` are those corresponding to the same experimental setting as `data_vXY.p` except that they have human guidance... I have one for each of the data versions now (as of September 1, 2017).

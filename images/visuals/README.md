@@ -174,5 +174,10 @@ Yaw is randomly chosen uniformly in [-90, 90].
 
 
 ```
-
+Distances among the pixels, (x,y) only:
+mean:   23.1320045825
+median: 21.0237960416
+max:    48.8773976394
+min:    3.60555127546
+std:    9.7201745131
 ```

@@ -122,10 +122,9 @@ def sample_rotation(fixed_yaw):
 
 if __name__ == "__main__":
     """ Set up a configuration here. SEE `images/README.md`. Use 2X for neural net stuff. """
-
     pp = argparse.ArgumentParser()
     pp.add_argument('--version_in', type=int, default=0, help='For now, it\'s 0')
-    pp.add_argument('--version_out', type=int, help='SEE `images/README.md`.')
+    pp.add_argument('--version_out', type=int, help='See `images/README.md`.')
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
     pp.add_argument('--z_offset', type=float, default=0.002)
