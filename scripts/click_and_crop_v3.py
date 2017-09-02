@@ -227,12 +227,27 @@ if __name__ == "__main__":
         assert net_input.shape == (1,6)
         assert len(predicted_pos) == 3
 
-        # APPLY THE RANDOM FOREST CORRECTION!
+        # APPLY THE RANDOM FOREST CORRECTION! Must pick random one if yaw is random
+        # For now, that is just randomly chosen among which of the closest yaws we have.
         # For now the z coord is there. If not, we'd put a 0 in the index=2 component.
         if args.use_rf_correctors:
-            assert args.fixed_yaw is not None
+            if args.fixed_yaw is not None:
+                yaw_key = args.fixed_yaw
+            else:
+                # Yeah I know it's ugly code...
+                if rotation[0] < -67.5: 
+                    yaw_key = -90
+                elif rotation[0] < -22.5: 
+                    yaw_key = -45
+                elif rotation[0] <  22.5: 
+                    yaw_key =   0
+                elif rotation[0] <  67.5: 
+                    yaw_key =  45
+                else:
+                    yaw_key =  90
+
             residual_vec = np.squeeze(
-                    RF_correctors[args.fixed_yaw].predict([predicted_pos])
+                    RF_correctors[yaw_key].predict([predicted_pos])
             )
             predicted_pos = predicted_pos - residual_vec
             print("\tresidual vector from RF corrector: {}".format(residual_vec))

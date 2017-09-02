@@ -250,3 +250,19 @@ max:    25.0599281723
 min:    1.0
 std:    5.94533962111
 ```
+
+## Version 35
+
+This is version 25 but with a RF predictor on top of that. The results are better!
+
+Results are worse than the version 33 which was the worst but not that much and the median was better ... we kind of expect the general case to be slightly worse due to rounding, etc.
+
+```
+Distances among the pixels, (x,y) only:
+mean:   14.7649220238
+median: 13.0
+max:    34.9284983931
+min:    2.2360679775
+std:    8.53379452876
+
+```
