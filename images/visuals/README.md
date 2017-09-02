@@ -182,3 +182,71 @@ max:    48.8773976394
 min:    3.60555127546
 std:    9.7201745131
 ```
+
+
+## Version 30
+
+This is version 20 but with a RF predictor on top of that. The results are much better!
+
+```
+Distances among the pixels, (x,y) only:
+mean:   8.95279720253
+median: 8.48528137424
+max:    28.0
+min:    1.0
+std:    6.19829418646
+```
+
+## Version 31
+
+This is version 21 but with a RF predictor on top of that. The results are better! They could have been better if the pixel locations agreed among the two cameras (I think that was the reason for two of the outliers...).
+
+```
+Distances among the pixels, (x,y) only:
+mean:   12.1006710636
+median: 11.6619037897
+max:    30.0
+min:    2.0
+std:    7.10951393423
+```
+
+## Version 32
+
+This is version 22 but with a RF predictor on top of that. The results are better!
+
+```
+Distances among the pixels, (x,y) only:
+mean:   12.8575833722
+median: 12.0
+max:    27.2029410175
+min:    1.41421356237
+std:    7.15918838964
+```
+
+## Version 33
+
+This is version 23 but with a RF predictor on top of that. The results are better!
+
+Note that version 23 seemed to be very bad so this is worse but it's still about a 2x improvement in terms of 2x reduced error.
+
+```
+Distances among the pixels, (x,y) only:
+mean:   14.2161071535
+median: 14.1421356237
+max:    29.1547594742
+min:    1.0
+std:    6.41333523449
+```
+
+## Version 34
+
+This is version 24 but with a RF predictor on top of that. The results are better!
+
+```
+Distances among the pixels, (x,y) only:
+mean:   10.5123774498
+median: 8.0622577483
+max:    25.0599281723
+min:    1.0
+std:    5.94533962111
+```

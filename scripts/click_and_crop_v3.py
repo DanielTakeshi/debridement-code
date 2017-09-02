@@ -18,6 +18,10 @@ python scripts/click_and_crop_v3.py --version_out 23 \
                                     --z_offset 0.0 \
                                     --fixed_yaw -45
 
+Example with using the RF (and w/out the beginning `clear`, etc...):
+
+python scripts/click_and_crop_v3.py --version_out 30 --fixed_yaw 90 --use_rf_correctors
+
 (c) September 2017 by Daniel Seita
 """
 
@@ -92,7 +96,11 @@ def get_good_contours(image, image_contours, max_num_add):
         cv2.circle(img=image, center=(cX,cY), radius=50, color=(0,0,255), thickness=1)
         cv2.circle(img=image, center=(cX,cY), radius=4, color=(0,0,255), thickness=-1)
         cv2.drawContours(image=image, contours=[approx], contourIdx=-1, color=(0,255,0), thickness=3)
-        cv2.imshow("ESC if duplicate/undesired, other key to proceed. Added {}".format(num_added), image)
+
+        name = "ESC if duplicate/undesired, other key to proceed."
+        cv2.namedWindow(name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(name, 2000, 4000)
+        cv2.imshow(name, image)
         firstkey = cv2.waitKey(0) 
 
         # Update `contours` and add extra text to make the image updating easier to follow.
@@ -127,11 +135,11 @@ if __name__ == "__main__":
     pp.add_argument('--version_out', type=int, help='See `images/README.md`.')
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
-    pp.add_argument('--z_offset', type=float, default=0.002)
+    pp.add_argument('--z_offset', type=float, default=0.000)
     pp.add_argument('--fixed_yaw', type=float, help='If not provided, yaw randomly chosen in [-90,90]')
     pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
-    pp.add_argument('--simulate_right', type=int, default=0, help='1 if simulate right, 0 if false')
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
+    pp.add_argument('--use_rf_correctors', action='store_true')
     args = pp.parse_args()
 
     IN_VERSION  = str(args.version_in).zfill(2)
@@ -147,7 +155,7 @@ if __name__ == "__main__":
     )
     rotation = sample_rotation(args.fixed_yaw)
     print("Our starting rotation: {}".format(rotation))
-
+    
     # Now get the robot arm initialized and test it out!
     arm, _, d = utils.initializeRobots()
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
@@ -167,7 +175,7 @@ if __name__ == "__main__":
     ## and I'm in a bit of a rush, so sorry!
     ## ------------------------------------------------------------------------------------
 
-    # The right image will tell us how many contours we can expect (34, 35, 36??).
+    # The right image will typically tell us how many contours we can expect (34, 35, 36??).
     cv2.imwrite("images/right_image.jpg", d.right_image)
     cv2.imwrite("images/left_image.jpg", d.left_image)
     utils.call_wait_key(cv2.imshow("RIGHT camera, used for contours", d.right_image_proc))
@@ -178,7 +186,22 @@ if __name__ == "__main__":
     net_mean  = PARAMS['X_mean']
     net_std   = PARAMS['X_std']
 
-    # PART ONE: Get the contours. Manual work here to cut down on boredom in the second part.
+    ## ---------------------------------------------------------------------------------
+    ## If we're using the random forest (or whatever) corrector, load it here! For now,
+    ## we assume we know we're using one of our five pre-determined yaw values. Sorry...
+    ## ---------------------------------------------------------------------------------
+    RF_correctors = {}
+    if args.use_rf_correctors:
+        head = 'config/mapping_results/rf_human_guided_yesz_v'
+        RF_correctors[ 90] = pickle.load(open(head+'20.p', 'r'))
+        RF_correctors[ 45] = pickle.load(open(head+'21.p', 'r'))
+        RF_correctors[  0] = pickle.load(open(head+'22.p', 'r'))
+        RF_correctors[-45] = pickle.load(open(head+'23.p', 'r'))
+        RF_correctors[-90] = pickle.load(open(head+'24.p', 'r'))
+
+    ## ---------------------------------------------------------------------------------------
+    ## PART ONE: Get the contours. Manual work here to cut down on boredom in the second part.
+    ## ---------------------------------------------------------------------------------------
     right_im = d.right_image.copy()
     left_im = d.left_image.copy()
     right_c = get_good_contours(right_im, d.right_contours, args.max_num_add)
@@ -187,7 +210,9 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
     assert len(right_c) == len(left_c)
  
-    # PART TWO: iterate through contours and drag the box around the end-effector location.
+    ## -------------------------------------------------------------------------------------
+    ## PART TWO: iterate through contours and drag the box around the end-effector location.
+    ## -------------------------------------------------------------------------------------
     for ii, (l_cnt, r_cnt) in enumerate(zip(left_c, right_c)):
         lx,ly,_,_ = l_cnt
         rx,ry,_,_ = r_cnt
@@ -201,6 +226,17 @@ if __name__ == "__main__":
             ['%.4f'%elem for elem in camera_pt], ['%4f'%elem for elem in predicted_pos]))
         assert net_input.shape == (1,6)
         assert len(predicted_pos) == 3
+
+        # APPLY THE RANDOM FOREST CORRECTION!
+        # For now the z coord is there. If not, we'd put a 0 in the index=2 component.
+        if args.use_rf_correctors:
+            assert args.fixed_yaw is not None
+            residual_vec = np.squeeze(
+                    RF_correctors[args.fixed_yaw].predict([predicted_pos])
+            )
+            predicted_pos = predicted_pos - residual_vec
+            print("\tresidual vector from RF corrector: {}".format(residual_vec))
+            print("\trevised predicted_pos: {}".format(predicted_pos))
 
         # Use offsets.
         predicted_pos[0] += args.x_offset
@@ -225,7 +261,8 @@ if __name__ == "__main__":
         # Now we apply the callback and drag a box around the end-effector on the (updated!) image.
         position = arm.get_current_cartesian_position()
         window_name = "Moved to pred_pos incl. offset {}. Click + drag box on end-eff.".format(predicted_pos)
-        cv2.namedWindow(window_name)
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL) # Oh, the _name_ is recorded...!
+        cv2.resizeWindow(window_name, 2000, 4000)
         cv2.setMouseCallback(window_name, click_and_crop) # Clicks to this window are recorded!
         cv2.imshow(window_name, updated_image_copy)
         key = cv2.waitKey(0)
@@ -259,5 +296,4 @@ if __name__ == "__main__":
         time.sleep(1)
 
     utils.home(arm, rot=rotation)
-    arm.close_gripper()
     cv2.destroyAllWindows()

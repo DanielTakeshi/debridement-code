@@ -12,17 +12,12 @@ data_pt = {'target_pos': pos,
 I.e. each element in the pickle file is a python dictionary.
 """
 
+import argparse
 import cv2
 import numpy as np
 import os
 import pickle
 import sys
-
-# Double check these as needed, especially the versions.
-VERSION         = '25'
-ORIGINAL_IMAGE  = 'images/left_image.jpg'
-IM_VISUALS_DIR  = 'images/visuals/'
-IM_VISUALS_FILE = 'config/calibration_results/data_v'+VERSION+'.p'
 
 
 def load_data(filename):
@@ -54,7 +49,7 @@ def collect_stats(visuals):
     print("std:    {}".format(l2_distances.std()))
 
 
-def make_fancy_image(image, visuals):
+def make_fancy_image(image, visuals, IM_VISUALS_DIR, VERSION):
     """ Make a fancy image, e.g. for a paper or presentation.
 
     Parameters
@@ -81,10 +76,20 @@ def make_fancy_image(image, visuals):
 
 
 if __name__ == "__main__":
+    pp = argparse.ArgumentParser()
+    pp.add_argument('--version', type=int)
+    args = pp.parse_args()
+
+    assert args.version is not None
+    VERSION         = str(args.version).zfill(2)
+    ORIGINAL_IMAGE  = 'images/left_image.jpg'
+    IM_VISUALS_DIR  = 'images/visuals/'
+    IM_VISUALS_FILE = 'config/calibration_results/data_v'+VERSION+'.p'
+
     image_original = cv2.imread(ORIGINAL_IMAGE).copy()
     visuals_data = load_data(IM_VISUALS_FILE)
     for item in visuals_data:
         print item
     print(len(visuals_data))
     collect_stats(visuals_data)
-    make_fancy_image(image_original, visuals_data)
+    make_fancy_image(image_original, visuals_data, IM_VISUALS_DIR, VERSION)
