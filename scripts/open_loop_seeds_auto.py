@@ -104,23 +104,25 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
         predicted_pos[0] += args.x_offset
         predicted_pos[1] += args.y_offset
         predicted_pos[2] += args.z_offset
-        CLOSE_ANGLE = 25
-        ZOFFSET_SAFETY = 0.002
+        CLOSE_ANGLE = 30
+        ZOFFSET_SAFETY = 0.004
+        predicted_pos[2] += ZOFFSET_SAFETY
 
-        utils.home(arm, rot=rotation)
-        arm.open_gripper(degree=90, time_sleep=2)
+        # Try to make this over where a bin/container is located to hold the dropped seeds.
+        bin_position = [-0.025, 0.06, -0.13]
+        utils.move(arm, bin_position, rotation, args.speed_class)
+        arm.open_gripper(degree=100, time_sleep=2)
+
         utils.move(arm, predicted_pos, rotation, args.speed_class)
 
         predicted_pos[2] -= ZOFFSET_SAFETY
         utils.move(arm, predicted_pos, rotation, args.speed_class)
         arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2) # Need >=2 seconds!
-
         predicted_pos[2] += ZOFFSET_SAFETY
         utils.move(arm, predicted_pos, rotation, args.speed_class)
 
-        utils.move(arm, [0, 0.06, -0.15], rotation, args.speed_class)
-        arm.open_gripper(degree=90, time_sleep=2) # Need >=2 seconds!
-        # utils.home(arm) # Might consider this for increased reliability.
+        utils.move(arm, bin_position, rotation, args.speed_class)
+        arm.open_gripper(degree=100, time_sleep=2) # Need >=2 seconds!
 
     text_file.close()
 
@@ -160,15 +162,16 @@ def get_good_contours(proc_image, image, bb, savedir, max_num_add=None):
                 angle = ellipse[2]
                 yaw = utils.opencv_ellipse_angle_to_robot_yaw(angle)
                 processed.append( (cX,cY,angle,yaw) )
+                cv2.circle(img=image, center=(cX,cY), radius=5, color=(0,0,255), thickness=-1)
                 cv2.putText(img=image,
-                        text="{},{:.1f}".format(len(processed), angle), 
+                            text="{},{:.1f}".format(len(processed), angle), 
                             org=(cX,cY), 
                             fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
                             fontScale=1, 
                             color=(255,0,0), 
                             thickness=2)
                 if (max_num_add is not None) and (len(processed) == max_num_add):
-                        break
+                    break
         except:
             pass
     assert len(processed) >= 1
@@ -193,7 +196,7 @@ if __name__ == "__main__":
     pp.add_argument('--version_out', type=int, help='See `images/README.md`, etc.')
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
-    pp.add_argument('--z_offset', type=float, default=0.002)
+    pp.add_argument('--z_offset', type=float, default=-0.002) # Tweak this value!!
     pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
     pp.add_argument('--use_rf_correctors', action='store_true')
@@ -227,9 +230,8 @@ if __name__ == "__main__":
     PARAMS['nnet'] = pickle.load(open('config/mapping_results/auto_params_matrices_v'+IN_VERSION+'.p','r'))
     print("Our parameters has keys: {}".format(PARAMS.keys()))
 
+    # Initialize, etc...
     arm, _, d = utils.initializeRobots()
-    utils.home(arm)
-    print("current arm position: {}".format(arm.get_current_cartesian_position()))
     arm.close_gripper()
 
     # Let's do a pre-processing step where we first filter for contours and inspect.
