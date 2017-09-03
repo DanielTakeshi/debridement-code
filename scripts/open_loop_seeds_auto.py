@@ -29,7 +29,7 @@ from keras.models import load_model
 np.set_printoptions(suppress=True, linewidth=200)
 
 
-def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d):
+def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, args):
     """ The open loop. It doesn't return anything, but it saves a lot.
     
     Parameters
@@ -50,81 +50,79 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d):
         Represents the arm we're using for the DVRK.
     d: [dvrk]
         The data collector.
+    args: [Namespace]
+        Arguments from the user, e.g. which contains offsets.
     """
     # Load the initial neural network. Don't forget the mean and standard deviation!!!
     f_network = load_model(PARAMS['nnet']['modeldir'])
     net_mean  = PARAMS['nnet']['X_mean']
     net_std   = PARAMS['nnet']['X_std']
-    print("network mean: {}".format(net_mean))
-    print("network std:  {}".format(net_std))
+    assert not os.path.exists(tosave_txt)
+    text_file = open(tosave_txt, 'w')
+    text_file.write("network mean: {}\n".format(net_mean))
+    text_file.write("network std:  {}\n".format(net_std))
 
-    ## print("Identified {} contours but will keep top {}.".format(len(contours_by_size), TOPK_CONTOURS))
-    ## img_for_drawing = img.copy()
-    ## contours = list(contours_by_size)
-    ## cv2.drawContours(img_for_drawing, contours, -1, (0,255,0), 3)
-    ## places_to_visit = []
+    for (left,right) in zip(l_cnts, r_cnts):
+        # Given left/right points, figure out the desired robot points.
+        lx,ly,langle,lyaw = left
+        rx,ry,rangle,ryaw = right
+        camera_pt = np.array( utils.camera_pixels_to_camera_coords([lx,ly], [rx,ry]) )
 
-    ## # Iterate and find centers. We'll make the robot move to these centers in a sequence.
-    ## # Note that duplicate contours should be detected beforehand.
-    ## for i,cnt in enumerate(contours):
-    ##     M = cv2.moments(cnt)
-    ##     if M["m00"] == 0: continue
-    ##     cX = int(M["m10"] / M["m00"])
-    ##     cY = int(M["m01"] / M["m00"])
-    ##     places_to_visit.append((cX,cY))
+        # Average out the yaw values. Use those to get rotation and then input to network.
+        yaw = (lyaw+ryaw)/2.
+        pitch, roll = utils.get_interpolated_pitch_and_roll(yaw)
+        rotation = np.array([yaw, pitch, roll])
+        net_input = (np.concatenate((camera_pt, rotation))).reshape((1,6))
+        text_file.write("\nnet_input (camera_pt, rot): {}\n".format(net_input)) 
 
-    ## # Collect only top K places to visit and insert ordering preferences. I do right to left.
-    ## places_to_visit = places_to_visit[:TOPK_CONTOURS]
-    ## places_to_visit = sorted(places_to_visit, key=lambda x:x[0], reverse=True)
+        # Use the network here!! As usual the leading dimension is the "batch" size.
+        net_input = (net_input - net_mean) / net_std
+        predicted_pos = np.squeeze(f_network.predict(net_input)).tolist()
+        text_file.write("pred_robot_pos (no offsets): {}\n".format(['%4f'%elem for elem in predicted_pos]))
+        assert net_input.shape == (1,6)
+        assert len(predicted_pos) == 3
 
-    ## # Number the places to visit in an image so I see them.
-    ## for i,(cX,cY) in enumerate(places_to_visit):
-    ##     cv2.putText(img=img_for_drawing, text=str(i), org=(cX,cY), 
-    ##                 fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
-    ##                 fontScale=1, color=(0,0,0), thickness=2)
-    ##     cv2.circle(img=img_for_drawing, center=(cX,cY), radius=3, color=(0,0,255), thickness=-1)
-    ##     print(i,cX,cY)
+        # Apply the random forest corrector depending on the yaw. Yeah I know it's ugly code...
+        if rotation[0] < -67.5: 
+            yaw_key = -90
+        elif rotation[0] < -22.5: 
+            yaw_key = -45
+        elif rotation[0] <  22.5: 
+            yaw_key =   0
+        elif rotation[0] <  67.5: 
+            yaw_key =  45
+        else:
+            yaw_key =  90
+        residual_vec = np.squeeze( PARAMS[yaw_key].predict([predicted_pos]) )    
+        predicted_pos = predicted_pos - residual_vec
+        text_file.write("\tresidual vector from RF corrector: {}\n".format(residual_vec))
+        text_file.write("\trevised predicted_pos (before offsets): {}\n".format(predicted_pos))
 
-    ## # Show image with contours + exact centers. Exit if it's not looking good. 
-    ## # If good, SAVE IT!!! This protects me in case of poor perception causing problems.
-    ## trial = len([fname for fname in os.listdir(IMAGE_DIR) if '.png' in fname])
-    ## cv2.imshow("Top-K contours (exit if not looking good), trial index is {}".format(trial), img_for_drawing)
-    ## utilities.call_wait_key()
-    ## cv2.imwrite(IMAGE_DIR+"/im_"+str(trial).zfill(3)+".png", img_for_drawing)
-    ## cv2.destroyAllWindows()
+        # -------------------------------------------
+        # NOW we can move. Gaaah. Apply offsets here.
+        # -------------------------------------------
+        predicted_pos[0] += args.x_offset
+        predicted_pos[1] += args.y_offset
+        predicted_pos[2] += args.z_offset
+        CLOSE_ANGLE = 25
+        ZOFFSET_SAFETY = 0.002
 
-    ## # Given points in `places_to_visit`, must figure out the robot points for each.
-    ## robot_points_to_visit = []
-    ## print("\nHere's where we'll be visiting (left_pixels, robot_point):")
-    ## for left_pixels in places_to_visit:
-    ##     robot_points_to_visit.append(
-    ##             utilities.left_pixel_to_robot_prediction(
-    ##                     left_pt=left_pixels,
-    ##                     params=PARAMETERS,
-    ##                     better_rf=RF_REGRESSOR,
-    ##                     ARM1_XOFFSET=ARM1_XOFFSET,
-    ##                     ARM1_YOFFSET=ARM1_YOFFSET,
-    ##                     ARM1_ZOFFSET=ARM1_ZOFFSET
-    ##             )
-    ##     )
-    ##     print("({}, {})\n".format(left_pixels, robot_points_to_visit[-1]))
+        utils.home(arm, rot=rotation)
+        arm.open_gripper(degree=90, time_sleep=2)
+        utils.move(arm, predicted_pos, rotation, args.speed_class)
 
-    ## # With robot points, tell it to _move_ to these points. Apply vertical offsets here, FYI.
-    ## # Using the `linear_interpolation` is slower and jerkier than just moving directly.
-    ## arm.open_gripper(degree=90, time_sleep=2)
-    ## for robot_pt in robot_points_to_visit:
-    ##     pos = [robot_pt[0], robot_pt[1], robot_pt[2]+ZOFFSET_SAFETY]
-    ##     utilities.move(arm, pos, ROTATION, SPEED_CLASS)
+        predicted_pos[2] -= ZOFFSET_SAFETY
+        utils.move(arm, predicted_pos, rotation, args.speed_class)
+        arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2) # Need >=2 seconds!
 
-    ##     pos[2] -= ZOFFSET_SAFETY
-    ##     utilities.move(arm, pos, ROTATION, SPEED_CLASS)
-    ##     arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2) # Need >=2 seconds!
+        predicted_pos[2] += ZOFFSET_SAFETY
+        utils.move(arm, predicted_pos, rotation, args.speed_class)
 
-    ##     pos[2] += ZOFFSET_SAFETY
-    ##     utilities.move(arm, pos, ROTATION, SPEED_CLASS)
+        utils.move(arm, [0, 0.06, -0.15], rotation, args.speed_class)
+        arm.open_gripper(degree=90, time_sleep=2) # Need >=2 seconds!
+        # utils.home(arm) # Might consider this for increased reliability.
 
-    ##     utilities.move(arm, HOME_POS, ROTATION, SPEED_CLASS)
-    ##     arm.open_gripper(degree=90, time_sleep=2) # Need >=2 seconds!
+    text_file.close()
 
 
 def get_good_contours(proc_image, image, bb, savedir, max_num_add=None):
@@ -195,10 +193,11 @@ if __name__ == "__main__":
     pp.add_argument('--version_out', type=int, help='See `images/README.md`, etc.')
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
-    pp.add_argument('--z_offset', type=float, default=0.000)
+    pp.add_argument('--z_offset', type=float, default=0.002)
     pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
     pp.add_argument('--use_rf_correctors', action='store_true')
+    pp.add_argument('--speed_class', type=str, default='Fast')
     args = pp.parse_args()
 
     # Check the image versions, etc.
@@ -206,6 +205,7 @@ if __name__ == "__main__":
     OUT_VERSION = str(args.version_out).zfill(2)
     IMAGE_DIR   = 'images/seeds_v'+OUT_VERSION+'/'
     assert (OUT_VERSION is not None) and (IN_VERSION is not None)
+    assert args.speed_class in ['Slow', 'Fast']
 
     # We want the image directory to exist; different trials will save in this directory.
     assert os.path.exists(IMAGE_DIR)
@@ -252,4 +252,4 @@ if __name__ == "__main__":
                     d.right_image.copy(),
                     proc_left_contours,
                     proc_right_contours,
-                    tosave_txt, PARAMS, arm, d)
+                    tosave_txt, PARAMS, arm, d, args)
