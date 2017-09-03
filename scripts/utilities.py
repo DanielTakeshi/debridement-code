@@ -282,5 +282,12 @@ def get_interpolated_pitch_and_roll(yaw, info=None):
     # Given this percentile, find the equivalent percentile values of pitch and roll.
     pitch = (range_p * yaw_percentile) + min_p
     roll =  (range_r * yaw_percentile) + min_r
-
     return pitch, roll
+
+
+def opencv_ellipse_angle_to_robot_yaw(angle):
+    """ See my hand-drawn notes from 09/03/2017. It simplifies to this. """
+    assert 0 <= angle <= 180
+    yaw = 90 - angle
+    assert -90 <= yaw <= 90
+    return yaw

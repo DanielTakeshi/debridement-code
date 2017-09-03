@@ -39,7 +39,6 @@ np.set_printoptions(suppress=True)
 
 VERSION_INPUT  = '00'    # 00=gripper, 10=scissors
 VERSION_OUTPUT = '99'    # See README in `images/` for details on numbers, e.g. use 99 for debugging.
-ESC_KEYS = [27, 1048603]
 
 # Adjust carefully!!
 CLOSE_ANGLE    = 25      # I think 25 is good for pumpkin, 10 for sunflower.
@@ -48,14 +47,14 @@ INTERPOLATE    = True    # We thought `False` would be faster but alas it doesn'
 SPEED_CLASS    = 'Fast'  # See `measure_speeds.py` for details.
 
 # Loading stuff.
-RF_REGRESSOR = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION_INPUT+'.p', 'r'))
-PARAMETERS   = pickle.load(open('config/mapping_results/manual_params_matrices_v'+VERSION_INPUT+'.p', 'r'))
+#RF_REGRESSOR = pickle.load(open('config/mapping_results/random_forest_predictor_v'+VERSION_INPUT+'.p', 'r'))
+#PARAMETERS   = pickle.load(open('config/mapping_results/manual_params_matrices_v'+VERSION_INPUT+'.p', 'r'))
 
 # Rotations and positions.
 # [   0.07827103  -12.19706825 -169.63700296]
-HOME_POS     = [0.00, 0.06, -0.13]
-ROTATION     = utils.get_average_rotation(VERSION_INPUT)
-TFX_ROTATION = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
+#HOME_POS     = [0.00, 0.06, -0.13]
+#ROTATION     = utils.get_average_rotation(VERSION_INPUT)
+#TFX_ROTATION = tfx.tb_angles(ROTATION[0], ROTATION[1], ROTATION[2])
 
 # Saving stuff
 IMAGE_DIR = 'images/seeds_v'+VERSION_OUTPUT
@@ -156,18 +155,24 @@ def motion_planning(contours_by_size, img, arm, rotations):
         arm.open_gripper(degree=90, time_sleep=2) # Need >=2 seconds!
 
 
-def get_single_contour_center(image, contours):
-    """ Assuming there is _one_ contour to return, we find it (return as a list). """
+def get_single_contour_center(image, contours, return_contour=False):
+    """ Assuming there is _one_ contour to return, we find it (return as a list).  """
+
     for i,(cX,cY,approx,peri) in enumerate(contours):  
-        if utils.filter_point(cX,cY, xlower=700, xupper=1000, ylower=500, yupper=1000):
+        if utils.filter_point(cX,cY, xlower=700, xupper=1400, ylower=500, yupper=1000):
             continue
         cv2.circle(img=image, center=(cX,cY), radius=50, color=(0,0,255), thickness=1)
         cv2.circle(img=image, center=(cX,cY), radius=4, color=(0,0,255), thickness=-1)
         cv2.drawContours(image=image, contours=[approx], contourIdx=-1, color=(0,255,0), thickness=3)
         cv2.imshow("ESC if duplicate/undesired, other key to proceed", image)
         firstkey = cv2.waitKey(0) 
+
+        # Return outright if we're only going to return one contour.
         if firstkey not in utils.ESC_KEYS:
-            return [cX,cY]
+            if return_contour:
+                return [cX,cY,approx,peri]
+            else:
+                return [cX,cY]
 
 
 def proof_of_concept_part_one(left_im, right_im, left_contours, right_contours, arm):
@@ -227,6 +232,68 @@ def proof_of_concept_part_two(left_im, right_im, left_contours, right_contours, 
     print("(cx,cy,cz) = ({:.4f}, {:.4f}, {:.4f})".format(*camera_pt))
 
 
+def get_contours(cnts, img):
+    for c in cnts:
+        try:
+            # Approximate the contour
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+
+            # Find the centroids of the contours in _pixel_space_. :)
+            M = cv2.moments(c)
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+
+            if utils.filter_point(cX,cY, xlower=700, xupper=1300, ylower=500, yupper=800):
+                continue
+
+            # Now fit an ellipse!
+            ellipse = cv2.fitEllipse(c)
+            cv2.ellipse(img, ellipse, (0,255,0), 2)
+            img_copy = img.copy()
+            cv2.imshow("Is this ellipse good? ESC to skip it, else return it.", img_copy)
+            firstkey = cv2.waitKey(0) 
+
+            if firstkey not in utils.ESC_KEYS:
+                return (cX, cY, peri, approx, ellipse)
+        except:
+            pass
+    return None
+
+
+def detect_seed_orientation(left_im, right_im, left_contours, right_contours, arm, d):
+    """ Detect seed orientation! 
+    
+    For now I think I'm going to try and fit an ellipse. Start by going through the
+    left and right cameras to find a _single_ seed contour. Then fit an ellipse, and
+    find the orientation of the angle.
+    """
+    #cv2.imshow("left image proc", d.left_image_proc)
+    #key = cv2.waitKey(0) 
+    #cv2.imshow("right image proc", d.right_image_proc)
+    #key = cv2.waitKey(0) 
+
+    (l_cnts, _) = cv2.findContours(d.left_image_proc, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    (r_cnts, _) = cv2.findContours(d.right_image_proc, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    l_cnt = get_contours(l_cnts, left_im.copy())
+    r_cnt = get_contours(r_cnts, right_im.copy())
+    cv2.destroyAllWindows()
+    (l_cX, l_cY, l_peri, l_approx, l_ellipse) = l_cnt
+    (r_cX, r_cY, r_peri, r_approx, r_ellipse) = r_cnt
+
+    # Looks like cv2.fitEllipse returns: 
+    #
+    #       ((x_centre,y_centre),(minor_axis,major_axis),angle)
+    #
+    # The `angle` is what we want. The minor/major axes don't change with rotation.
+    print("l_ellipse: {}".format(l_ellipse))
+    print("r_ellipse: {}".format(r_ellipse))
+
+    # The `angle` is measured in [0,180]. Convert to yaw in [-90,90].
+    l_angle = l_ellipse[2]
+    r_angle = r_ellipse[2]
+
+
 if __name__ == "__main__":
     """ See the top of the file for program-wide arguments. """
     arm, _, d = utils.initializeRobots(sleep_time=2)
@@ -246,13 +313,20 @@ if __name__ == "__main__":
     #    time.sleep(3)
 
     # Test proof of concept of the need for the automatic trajectory collection.
-    proof_of_concept_part_one(d.left_image.copy(), 
-                              d.right_image.copy(), 
-                              d.left_contours, 
-                              d.right_contours, 
-                              arm)
+    #proof_of_concept_part_one(d.left_image.copy(), 
+    #                          d.right_image.copy(), 
+    #                          d.left_contours, 
+    #                          d.right_contours, 
+    #                          arm)
     #proof_of_concept_part_two(d.left_image.copy(), 
     #                          d.right_image.copy(), 
     #                          d.left_contours, 
     #                          d.right_contours, 
     #                          arm)
+
+    # Now test if we can detect seed orientations.
+    detect_seed_orientation(d.left_image.copy(), 
+                            d.right_image.copy(), 
+                            d.left_contours, 
+                            d.right_contours, 
+                            arm, d)
