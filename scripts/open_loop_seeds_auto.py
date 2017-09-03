@@ -4,7 +4,9 @@ This is designed to use data originally from the automatically collected traject
 
 Usage example:
 
-    python scripts/open_loop_seeds_auto.py
+    python scripts/open_loop_seeds_auto.py --version_out 20 \
+            --max_num_add 8 \
+            --close_angle 30
 
 Notes:
 
@@ -22,6 +24,7 @@ import os
 import pickle
 import sys
 import tfx
+import time
 import utilities as utils
 from autolab.data_collector import DataCollector
 from dvrk.robot import *
@@ -61,6 +64,7 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
     text_file = open(tosave_txt, 'w')
     text_file.write("network mean: {}\n".format(net_mean))
     text_file.write("network std:  {}\n".format(net_std))
+    start_time = time.time()
 
     for (left,right) in zip(l_cnts, r_cnts):
         # Given left/right points, figure out the desired robot points.
@@ -104,26 +108,27 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
         predicted_pos[0] += args.x_offset
         predicted_pos[1] += args.y_offset
         predicted_pos[2] += args.z_offset
-        CLOSE_ANGLE = 30
-        ZOFFSET_SAFETY = 0.004
-        predicted_pos[2] += ZOFFSET_SAFETY
+        predicted_pos[2] += args.zoffset_safety
 
         # Try to make this over where a bin/container is located to hold the dropped seeds.
-        bin_position = [-0.025, 0.06, -0.13]
+        bin_position = [-0.025, 0.06, -0.125]
         utils.move(arm, bin_position, rotation, args.speed_class)
         arm.open_gripper(degree=100, time_sleep=2)
 
         utils.move(arm, predicted_pos, rotation, args.speed_class)
 
-        predicted_pos[2] -= ZOFFSET_SAFETY
+        predicted_pos[2] -= args.zoffset_safety
         utils.move(arm, predicted_pos, rotation, args.speed_class)
-        arm.open_gripper(degree=CLOSE_ANGLE, time_sleep=2) # Need >=2 seconds!
-        predicted_pos[2] += ZOFFSET_SAFETY
+        arm.open_gripper(degree=args.close_angle, time_sleep=2) # Need >=2 seconds!
+        predicted_pos[2] += args.zoffset_safety
         utils.move(arm, predicted_pos, rotation, args.speed_class)
 
         utils.move(arm, bin_position, rotation, args.speed_class)
         arm.open_gripper(degree=100, time_sleep=2) # Need >=2 seconds!
 
+    elapsed_time = time.time() - start_time
+    text_file.write("elapsed_time: {}\n".format(elapsed_time))
+    print("elapsed_time: {}".format(elapsed_time))
     text_file.close()
 
 
@@ -194,13 +199,15 @@ if __name__ == "__main__":
     pp = argparse.ArgumentParser()
     pp.add_argument('--version_in', type=int, default=0, help='For now, it\'s 0')
     pp.add_argument('--version_out', type=int, help='See `images/README.md`, etc.')
+    pp.add_argument('--close_angle', type=int, default=30) 
+    pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
+    pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
+    pp.add_argument('--use_rf_correctors', action='store_true')
+    pp.add_argument('--speed_class', type=str, default='Fast')
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
     pp.add_argument('--z_offset', type=float, default=-0.002) # Tweak this value!!
-    pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
-    pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
-    pp.add_argument('--use_rf_correctors', action='store_true')
-    pp.add_argument('--speed_class', type=str, default='Fast')
+    pp.add_argument('--zoffset_safety', type=float, default=0.004) # And this one ...
     args = pp.parse_args()
 
     # Check the image versions, etc.
@@ -236,15 +243,15 @@ if __name__ == "__main__":
 
     # Let's do a pre-processing step where we first filter for contours and inspect.
     # This will also save the images for debugging purposes later.
-    proc_left_contours  = get_good_contours(d.left_image_proc.copy(), 
-                                            d.left_image.copy(), 
-                                            d.get_left_bounds(),
-                                            IMAGE_DIR+"img_"+trial_str+"_left.png",
-                                            max_num_add=args.max_num_add)
     proc_right_contours = get_good_contours(d.right_image_proc.copy(), 
                                             d.right_image.copy(),
                                             d.get_right_bounds(),
                                             IMAGE_DIR+"img_"+trial_str+"_right.png",
+                                            max_num_add=args.max_num_add)
+    proc_left_contours  = get_good_contours(d.left_image_proc.copy(), 
+                                            d.left_image.copy(), 
+                                            d.get_left_bounds(),
+                                            IMAGE_DIR+"img_"+trial_str+"_left.png",
                                             max_num_add=args.max_num_add)
     assert len(proc_left_contours) == len(proc_right_contours)
     assert len(proc_left_contours) <= args.max_num_add
