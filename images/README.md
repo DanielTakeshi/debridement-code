@@ -20,7 +20,7 @@ Versions 2X are for mappings from the neural networks.
 
 ## Visuals
 
-(There's a README in this directory.)
+(There's a README in this directory which contains important statistics!!)
 
 ## Seeds
 
@@ -43,3 +43,8 @@ These are for saving the initial images from the open loop stuff, since I want t
 **Debugging**:
 
 - Version 99: for debugging, e.g. with super fast movement. :-)
+
+
+**For neural net stuff**:
+
+- Use `seeds_v20` for this.

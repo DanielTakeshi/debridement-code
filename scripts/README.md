@@ -4,6 +4,7 @@
 
 - **Running the Code**: use `open_loop_seeds.py` to pick seeds! It automatically saves the original images so I can verify that the failure cases were due to perception and not calibration.
 
+- Note: use `open_loop_seeds_auto.py` for the upgraded version with rotations and trained originally from automatically collected trajectories.
 
 ## Training from Calibration Data
 
@@ -11,7 +12,7 @@
 
   - `train_rf.py` (and then `train_rf_make_rf.py`) should ideally make the full pipeline work by getting the data (then training the RF) on my actual data where I correct based on my own data. Then `click_and_crop_v2.py` will test that with the different (but better, in my opinion) method for dealing with random forest residuals. Though I don't need to use that human-guided random forest for the "RB only" or the "neural net only" strategies. 
 
-  - Use `click_and_crop_v3.py` for the auto trajectory case. I got tired of splitting it by cases. Then for that, don't use `train_rf.py` and such but use `human_guidance_auto.py`. It saves in the same directory as the stuff fron clicking and cropping to keep versions aligned. Then `human_guidance_auto_make_stuff.py` will actually make the random forests, etc.
+  - Use `click_and_crop_v3.py` for the auto trajectory case. I got tired of splitting it by cases. Then for that, don't use `train_rf.py` and such but use `human_guidance_auto.py`. It saves in the same directory as the stuff from clicking and cropping to keep versions aligned. Then `human_guidance_auto_make_stuff.py` will actually make the random forests, etc. So the two `human_guidance` scripts replace the two `train_rf` scripts from earlier.
   
   - Use `collect_together.py` to get stats and an image.
 

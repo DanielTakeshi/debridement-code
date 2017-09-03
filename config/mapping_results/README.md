@@ -14,3 +14,11 @@ Scissors
 ## Random Forest Predictor
 
 We're also going to put the random forest mapping here, this one trained on my human data (not done beforehand) ... version 0 is again the first trial with the 36 data points.
+
+
+# Automatic Stuff
+
+Trained from the automatically generated trajectories.
+
+- Use anything with `auto` in its name for the neural net. 
+- For rf correctors, use `rf_human_guided` stuff. Do NOT use `random_forest_predictor`.

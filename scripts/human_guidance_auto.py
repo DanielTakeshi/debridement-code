@@ -1,5 +1,5 @@
 """ 
-Use this after traiing a neural network to map from camera points and *desired* yaw, 
+Use this after training a neural network to map from camera points and *desired* yaw, 
 pitch, and roll to a set of robot points. There is some systematic errors that I've 
 shown from `click_and_crop_v3.py`. Hence, this will do the human guided stuff so 
 that in the end we have a dataset which we can then train something to go from:
