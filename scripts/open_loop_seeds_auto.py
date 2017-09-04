@@ -12,8 +12,9 @@ Notes:
 
 - Make sure I exit early if all eight seeds are not detected correctly!!
 - Images should be saved of the initial contours to check for potential errors.
-- Don't use `tee` as I should be doing this inside code automatically.
-- Add guards to prevent accidental overriding of files.
+- Don't use `tee` as I should be writing to a file automatically.
+- Use `--close_angle 30` for pumpkin, `--close_angle 15` for sunflower.
+- Also, I've found that a z offset of -0.001 works well, maybe -0.002 for pumpkins?
 """
 
 import argparse
@@ -206,7 +207,7 @@ if __name__ == "__main__":
     pp.add_argument('--speed_class', type=str, default='Fast')
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
-    pp.add_argument('--z_offset', type=float, default=-0.002) # Tweak this value!!
+    pp.add_argument('--z_offset', type=float, default=-0.001) # Tweak this value!!
     pp.add_argument('--zoffset_safety', type=float, default=0.004) # And this one ...
     args = pp.parse_args()
 

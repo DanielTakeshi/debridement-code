@@ -47,4 +47,5 @@ These are for saving the initial images from the open loop stuff, since I want t
 
 **For neural net stuff**:
 
-- Use `seeds_v20` for this.
+- `seeds_v20`: pumpkin seeds, random orientation. I made an error with numbering, trials 1 and 2 correspond to indices 0 and 1, but then for some reason index 2 seems to not correspond to a trial. So the others after that are trial X for index X.
+- `seeds_v21`: sunflower seeds, random orientation. This time the numbering is right, i.e. trial X corresponds to index X-1.
