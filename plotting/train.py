@@ -74,8 +74,11 @@ def train_network(X_train, y_train, X_valid, y_valid, X_mean, X_std):
     # Collect additional stats for reporting in the ICRA 2018 submission.
     val_abs_errors = np.abs(y_valid_pred - y_valid)
     per_coord_val_errors = np.mean(val_abs_errors, axis=0)
+    per_coord_std = np.std(val_abs_errors, axis=0)
     assert len(per_coord_val_errors) == 3
+    assert len(per_coord_std) == 3
     stats['per_coord_val_errors'] = per_coord_val_errors
+    stats['per_coord_std'] = per_coord_std
     print("per_coord_val_errors: {}".format(per_coord_val_errors))
 
     return stats
@@ -89,7 +92,8 @@ def plot(stats, numbers):
     print("\nNow plotting with dictionary stats.keys(): {}".format(stats.keys()))
     print("Here are the per-coordinate errors for each run:")
     for nn in numbers:
-        print("for key {}, per-coordinate errors: {}".format(nn, stats[nn]['per_coord_val_errors']))
+        print("for key {}, per-coordinate errors (at end): {}".format(nn, stats[nn]['per_coord_val_errors']))
+        print("per-coordinate std (at end): {}".format(stats[nn]['per_coord_std']))
 
     plt.figure(figsize=(10,8))
     for i,nn in enumerate(numbers):
@@ -103,6 +107,7 @@ def plot(stats, numbers):
     plt.tick_params(axis='x', labelsize=ticksize)
     plt.tick_params(axis='y', labelsize=ticksize)
     plt.legend(loc='best', prop={'size':legendsize})
+    plt.tight_layout()
     plt.savefig('neural_net_studies.png')
 
 
