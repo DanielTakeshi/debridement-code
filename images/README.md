@@ -47,5 +47,21 @@ These are for saving the initial images from the open loop stuff, since I want t
 
 **For neural net stuff**:
 
-- `seeds_v20`: pumpkin seeds, random orientation. I made an error with numbering, trials 1 and 2 correspond to indices 0 and 1, but then for some reason index 2 seems to not correspond to a trial. So the others after that are trial X for index X.
-- `seeds_v21`: sunflower seeds, random orientation. This time the numbering is right, i.e. trial X corresponds to index X-1.
+Using DNN + RF
+
+- `seeds_v20`: pumpkin seeds, random orientation. I made an error with numbering, 
+    trials 1 and 2 correspond to indices 0 and 1, but then for some reason index 
+    2 seems to not correspond to a trial. So the others after that are trial X for index X.
+
+- `seeds_v21`: sunflower seeds, random orientation. This time the numbering is right, 
+    i.e. trial X corresponds to index X-1.
+
+Note that the 15 trials with v20 and v21 used the slower timing benchmark ... ugh.
+
+Using DNN ONLY as a baselie:
+
+- `seeds_v22`: pumpkin seeds, random orientation.
+
+- `seeds_v23`: sunflower seeds, random orientation.
+
+This time v22 and v23 have good timing benchmarks, even if their performance sucks.

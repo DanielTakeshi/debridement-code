@@ -15,6 +15,7 @@ Notes:
 - Don't use `tee` as I should be writing to a file automatically.
 - Use `--close_angle 30` for pumpkin, `--close_angle 15` for sunflower.
 - Also, I've found that a z offset of -0.001 works well, maybe -0.002 for pumpkins?
+- Use `--no_rf_correctors` to test a baseline of just the DNN. It _should_ be worse!
 """
 
 import argparse
@@ -65,7 +66,16 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
     text_file = open(tosave_txt, 'w')
     text_file.write("network mean: {}\n".format(net_mean))
     text_file.write("network std:  {}\n".format(net_std))
-    start_time = time.time()
+
+    # Try to make this over where a bin/container is located to hold the dropped seeds.
+    bin_position = [-0.025, 0.06, -0.125]
+    start_yaw = 0
+    start_pitch, start_roll = utils.get_interpolated_pitch_and_roll(start_yaw)
+    utils.move(arm, bin_position, [start_yaw,start_pitch,start_roll], args.speed_class)
+    arm.open_gripper(degree=100, time_sleep=2)
+
+    # Important! We want to measure time. But don't include start-up time above.
+    overall_start_time = time.time()
 
     for (left,right) in zip(l_cnts, r_cnts):
         # Given left/right points, figure out the desired robot points.
@@ -88,20 +98,23 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
         assert len(predicted_pos) == 3
 
         # Apply the random forest corrector depending on the yaw. Yeah I know it's ugly code...
-        if rotation[0] < -67.5: 
-            yaw_key = -90
-        elif rotation[0] < -22.5: 
-            yaw_key = -45
-        elif rotation[0] <  22.5: 
-            yaw_key =   0
-        elif rotation[0] <  67.5: 
-            yaw_key =  45
+        if args.no_rf_correctors:
+            text_file.write("\t(No RF corrector)\n")
         else:
-            yaw_key =  90
-        residual_vec = np.squeeze( PARAMS[yaw_key].predict([predicted_pos]) )    
-        predicted_pos = predicted_pos - residual_vec
-        text_file.write("\tresidual vector from RF corrector: {}\n".format(residual_vec))
-        text_file.write("\trevised predicted_pos (before offsets): {}\n".format(predicted_pos))
+            if rotation[0] < -67.5: 
+                yaw_key = -90
+            elif rotation[0] < -22.5: 
+                yaw_key = -45
+            elif rotation[0] <  22.5: 
+                yaw_key =   0
+            elif rotation[0] <  67.5: 
+                yaw_key =  45
+            else:
+                yaw_key =  90
+            residual_vec = np.squeeze( PARAMS[yaw_key].predict([predicted_pos]) )    
+            predicted_pos = predicted_pos - residual_vec
+            text_file.write("\tresidual vector from RF corrector: {}\n".format(residual_vec))
+            text_file.write("\trevised predicted_pos (before offsets): {}\n".format(predicted_pos))
 
         # -------------------------------------------
         # NOW we can move. Gaaah. Apply offsets here.
@@ -111,25 +124,22 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
         predicted_pos[2] += args.z_offset
         predicted_pos[2] += args.zoffset_safety
 
-        # Try to make this over where a bin/container is located to hold the dropped seeds.
-        bin_position = [-0.025, 0.06, -0.125]
+        # First rotate at the bin position, then move to the seed (with rotation fixed).
         utils.move(arm, bin_position, rotation, args.speed_class)
-        arm.open_gripper(degree=100, time_sleep=2)
-
         utils.move(arm, predicted_pos, rotation, args.speed_class)
 
         predicted_pos[2] -= args.zoffset_safety
         utils.move(arm, predicted_pos, rotation, args.speed_class)
-        arm.open_gripper(degree=args.close_angle, time_sleep=2) # Need >=2 seconds!
+        arm.open_gripper(degree=args.close_angle, time_sleep=1.5) # Need >=2 seconds!
         predicted_pos[2] += args.zoffset_safety
         utils.move(arm, predicted_pos, rotation, args.speed_class)
 
         utils.move(arm, bin_position, rotation, args.speed_class)
-        arm.open_gripper(degree=100, time_sleep=2) # Need >=2 seconds!
+        arm.open_gripper(degree=100, time_sleep=1.5) # Need >=2 seconds!
 
-    elapsed_time = time.time() - start_time
-    text_file.write("elapsed_time: {}\n".format(elapsed_time))
-    print("elapsed_time: {}".format(elapsed_time))
+    overall_elapsed_time = time.time() - overall_start_time
+    text_file.write("overall_elapsed_time: {}\n".format(overall_elapsed_time))
+    print("overall_elapsed_time: {}".format(overall_elapsed_time))
     text_file.close()
 
 
@@ -203,11 +213,11 @@ if __name__ == "__main__":
     pp.add_argument('--close_angle', type=int, default=30) 
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
     pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
-    pp.add_argument('--use_rf_correctors', action='store_true')
+    pp.add_argument('--no_rf_correctors', action='store_true')
     pp.add_argument('--speed_class', type=str, default='Fast')
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
-    pp.add_argument('--z_offset', type=float, default=-0.001) # Tweak this value!!
+    pp.add_argument('--z_offset', type=float, default=-0.002) # Tweak this value!!
     pp.add_argument('--zoffset_safety', type=float, default=0.004) # And this one ...
     args = pp.parse_args()
 
