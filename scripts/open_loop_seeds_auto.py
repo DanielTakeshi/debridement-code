@@ -2,11 +2,22 @@
 Open loop for the case when we have a bunch of seeds scattered with random rotations.
 This is designed to use data originally from the automatically collected trajectories.
 
-Usage example:
+Usage:
 
-    python scripts/open_loop_seeds_auto.py --version_out 20 \
-            --max_num_add 8 \
-            --close_angle 30
+DNN+RF, pumpkins:
+    python scripts/open_loop_seeds_auto.py --version_out 20 --max_num_add 8 --close_angle 30
+DNN+RF, sunflowers:
+    python scripts/open_loop_seeds_auto.py --version_out 21 --max_num_add 8 --close_angle 15
+DNN, pumpkins:
+    python scripts/open_loop_seeds_auto.py --version_out 22 --max_num_add 8 --close_angle 30 --no_rf_correctors
+DNN, sunflowers:
+    python scripts/open_loop_seeds_auto.py --version_out 23 --max_num_add 8 --close_angle 15 --no_rf_correctors
+DNN+RF, pumpkins, v2 (now that I got the timing set up and better understanding of failure cases...):
+    python scripts/open_loop_seeds_auto.py --version_out 24 --max_num_add 8 --close_angle 30
+DNN+RF, raisins from Ken:
+    python scripts/open_loop_seeds_auto.py --version_out 25 --max_num_add 8 --close_angle 30
+DNN, raisins from Ken:
+    python scripts/open_loop_seeds_auto.py --version_out 26 --max_num_add 8 --close_angle 30 --no_rf_correctors
 
 Notes:
 
@@ -130,12 +141,15 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
 
         predicted_pos[2] -= args.zoffset_safety
         utils.move(arm, predicted_pos, rotation, args.speed_class)
-        arm.open_gripper(degree=args.close_angle, time_sleep=1.5) # Need >=2 seconds!
+        arm.open_gripper(degree=args.close_angle, time_sleep=1.5) # Experimentally, 1.5 seems to work.
+        #arm.open_gripper(degree=args.close_angle) # Doesn't work, it goes up as it closes. :-(
         predicted_pos[2] += args.zoffset_safety
         utils.move(arm, predicted_pos, rotation, args.speed_class)
+        time.sleep(0.5)
 
         utils.move(arm, bin_position, rotation, args.speed_class)
-        arm.open_gripper(degree=100, time_sleep=1.5) # Need >=2 seconds!
+        #arm.open_gripper(degree=100, time_sleep=1)
+        arm.open_gripper(degree=100) # This works! :-)
 
     overall_elapsed_time = time.time() - overall_start_time
     text_file.write("overall_elapsed_time: {}\n".format(overall_elapsed_time))
@@ -218,7 +232,7 @@ if __name__ == "__main__":
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
     pp.add_argument('--z_offset', type=float, default=-0.002) # Tweak this value!!
-    pp.add_argument('--zoffset_safety', type=float, default=0.004) # And this one ...
+    pp.add_argument('--zoffset_safety', type=float, default=0.006) # And this one ...
     args = pp.parse_args()
 
     # Check the image versions, etc.

@@ -65,3 +65,9 @@ Using DNN ONLY as a baselie:
 - `seeds_v23`: sunflower seeds, random orientation.
 
 This time v22 and v23 have good timing benchmarks, even if their performance sucks.
+
+- `seeds_v24` debugging pumpkin seeds ... for some reason my results are worse? Darn ... we just have to argue that this task is very challenging!
+
+- `seeds_v25` raisins, DNN+RF
+
+- `seeds_v26` raisins, DNN only
