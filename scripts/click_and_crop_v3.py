@@ -43,6 +43,20 @@ POINTS          = []
 CENTER_OF_BOXES = []
 
 
+def get_key_from_rot(rotation):
+    """ Yeah I know it's ugly code... """
+    if rotation < -67.5: 
+        return -90
+    elif rotation < -22.5: 
+        return -45
+    elif rotation <  22.5: 
+        return 0
+    elif rotation <  67.5: 
+        return 45
+    else:
+        return 90
+
+
 def click_and_crop(event, x, y, flags, param):
     global POINTS, CENTER_OF_BOXES
              
@@ -140,15 +154,20 @@ if __name__ == "__main__":
     pp.add_argument('--max_num_add', type=int, default=35) # If I do 36, I'll be restarting a lot. :-)
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
     pp.add_argument('--use_rf_correctors', action='store_true')
+    pp.add_argument('--use_rigid_body', action='store_true')
     args = pp.parse_args()
+
+    # Just because I think v1 is now better ... but IDK. Can comment out if desired.
+    assert args.version_in != 0, "Are you sure you want version 0?"
 
     IN_VERSION  = str(args.version_in).zfill(2)
     OUT_VERSION = str(args.version_out).zfill(2)
     OUTPUT_FILE = 'config/calibration_results/data_v'+OUT_VERSION+'.p'
     IMDIR       = 'images/check_regressors_v'+OUT_VERSION+'/'
     assert (OUT_VERSION is not None) and (IN_VERSION is not None)
-    assert not os.path.exists(OUTPUT_FILE) # To prevent overriding
-    assert not os.path.exists(IMDIR) # To prevent overriding
+    # To prevent overriding
+    assert not os.path.exists(OUTPUT_FILE), "OUTPUT_FILE: {}".format(OUTPUT_FILE)
+    assert not os.path.exists(IMDIR), "IMDIR: {}".format(IMDIR)
     os.makedirs(IMDIR)
     PARAMS = pickle.load(
             open('config/mapping_results/auto_params_matrices_v'+IN_VERSION+'.p', 'r')
@@ -163,17 +182,13 @@ if __name__ == "__main__":
     print("current arm position: {}".format(arm.get_current_cartesian_position()))
     arm.close_gripper()
 
-    ## ------------------------------------------------------------------------------------
-    ## This will test calibration! Two main cases: either we simulate the right camera's
-    ## points from the left camera, or we track both of the cameras. I think tracking with
-    ## both cameras is best, so the easiest way is to go through all the right contours but
-    ## just track the ones that work, so progressively accumulate 36 (or 35...) values. Do
-    ## the same for the left image. Then, with this data, we redo the entire process but we
+    ## ---------------------------------------------------------------------------------
+    ## This will test calibration! Progressively accumulate 36 (or 35...) values. Do the 
+    ## same for the left image. Then, with this data, we redo the entire process but we
     ## know we no longer have to do the repeated skipping I was doing.
-    ##
     ## Note: this used to be its own method, but I got confused about the callback code, 
     ## and I'm in a bit of a rush, so sorry!
-    ## ------------------------------------------------------------------------------------
+    ## ---------------------------------------------------------------------------------
 
     # The right image will typically tell us how many contours we can expect (34, 35, 36??).
     cv2.imwrite("images/right_image.jpg", d.right_image)
@@ -181,7 +196,7 @@ if __name__ == "__main__":
     utils.call_wait_key(cv2.imshow("RIGHT camera, used for contours", d.right_image_proc))
     utils.call_wait_key(cv2.imshow("left camera, used for contours", d.left_image_proc))
 
-    # Don't forget to load our trained neural network!
+    # Don't forget to load our trained neural network and rigid bodies!
     f_network = load_model(PARAMS['modeldir'])
     net_mean  = PARAMS['X_mean']
     net_std   = PARAMS['X_std']
@@ -217,46 +232,49 @@ if __name__ == "__main__":
         lx,ly,_,_ = l_cnt
         rx,ry,_,_ = r_cnt
         camera_pt = np.array( utils.camera_pixels_to_camera_coords([lx,ly], [rx,ry]) )
-        net_input = (np.concatenate((camera_pt, rotation))).reshape((1,6))
 
-        # Use the network here!! As usual the leading dimension is the "batch" size.
-        net_input = (net_input - net_mean) / net_std
-        predicted_pos = np.squeeze(f_network.predict(net_input)).tolist()
-        print("\ncamera_pt: {}  pred_robot_pos (no offsets): {}".format(
-            ['%.4f'%elem for elem in camera_pt], ['%4f'%elem for elem in predicted_pos]))
-        assert net_input.shape == (1,6)
-        assert len(predicted_pos) == 3
-
-        # APPLY THE RANDOM FOREST CORRECTION! Must pick random one if yaw is random
-        # For now, that is just randomly chosen among which of the closest yaws we have.
-        # For now the z coord is there. If not, we'd put a 0 in the index=2 component.
-        if args.use_rf_correctors:
+        if args.use_rigid_body:
+            # Homogenous coordinates!!
+            camera_pt = np.concatenate( (camera_pt,np.ones(1)) )
             if args.fixed_yaw is not None:
-                yaw_key = args.fixed_yaw
+                yaw_key = int(args.fixed_yaw)
             else:
-                # Yeah I know it's ugly code...
-                if rotation[0] < -67.5: 
-                    yaw_key = -90
-                elif rotation[0] < -22.5: 
-                    yaw_key = -45
-                elif rotation[0] <  22.5: 
-                    yaw_key =   0
-                elif rotation[0] <  67.5: 
-                    yaw_key =  45
-                else:
-                    yaw_key =  90
+                yaw_key = int(get_key_from_rot(rotation[0]))
+            predicted_pos = PARAMS['rigid_body_'+str(yaw_key)].dot(camera_pt)
+            print("\tpredicted_pos: {}".format(predicted_pos))
 
-            residual_vec = np.squeeze(
-                    RF_correctors[yaw_key].predict([predicted_pos])
-            )
-            predicted_pos = predicted_pos - residual_vec
-            print("\tresidual vector from RF corrector: {}".format(residual_vec))
-            print("\trevised predicted_pos: {}".format(predicted_pos))
+        else:
+            # Use the network here!! As usual the leading dimension is the "batch" size.
+            net_input = (np.concatenate((camera_pt, rotation))).reshape((1,6))
+            net_input = (net_input - net_mean) / net_std
+            predicted_pos = np.squeeze(f_network.predict(net_input)).tolist()
+            print("\ncamera_pt: {}  pred_robot_pos (no offsets): {}".format(
+                ['%.4f'%elem for elem in camera_pt], ['%4f'%elem for elem in predicted_pos]))
+            assert net_input.shape == (1,6)
+
+            # APPLY THE RANDOM FOREST CORRECTION! Must pick random one if yaw is random
+            # For now, that is just randomly chosen among which of the closest yaws we have.
+            # For now the z coord is there. If not, we'd put a 0 in the index=2 component.
+            if args.use_rf_correctors:
+                if args.fixed_yaw is not None:
+                    yaw_key = args.fixed_yaw
+                else:
+                    yaw_key = get_key_from_rot(rotation[0])
+                residual_vec = np.squeeze(
+                        RF_correctors[yaw_key].predict([predicted_pos])
+                )
+                predicted_pos = predicted_pos - residual_vec
+                print("\tresidual vector from RF corrector: {}".format(residual_vec))
+                print("\trevised predicted_pos: {}".format(predicted_pos))
 
         # Use offsets.
+        predicted_pos[2] = np.maximum(predicted_pos[2], -0.18)
+        predicted_pos[2] = np.minimum(predicted_pos[2], -0.168)
+
         predicted_pos[0] += args.x_offset
         predicted_pos[1] += args.y_offset
         predicted_pos[2] += args.z_offset
+        assert len(predicted_pos) == 3
 
         # Robot moves to that point and will likely be off. Let the camera refresh.
         utils.move(arm, predicted_pos, rotation, 'Slow')

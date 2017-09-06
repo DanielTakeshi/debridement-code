@@ -536,14 +536,14 @@ if __name__ == "__main__":
         params['X_std']  = X_std
         params['modeldir'] = modeldir
         pickle.dump(params, 
-                open('config/mapping_results/auto_params_matrices_v'+str(args.version_out)+'.p', 'w'))
+                open('config/mapping_results/auto_params_matrices_v'+str(args.version_out).zfill(2)+'.p', 'w'))
         print("\nDictionary keys: {}".format(params.keys()))
 
     elif args.collection == 'manual':
         params['RB_matrix'] = rigid_body_matrix
         params['rf_residuals'] = residuals_mapping
         pickle.dump(params, 
-                open('config/mapping_results/manual_params_matrices_v'+str(args.version_out)+'.p', 'w'))
+                open('config/mapping_results/manual_params_matrices_v'+str(args.version_out).zfill(2)+'.p', 'w'))
 
     # -----------------------------------------------------------------------------
     # Let's see what happens if we _pretend_ we ignore the right camera's pixels.

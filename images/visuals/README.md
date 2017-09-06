@@ -264,5 +264,106 @@ median: 13.0
 max:    34.9284983931
 min:    2.2360679775
 std:    8.53379452876
+```
 
+
+# Rigid Body Only
+
+40 thorugh 44 are for yaw (roughly) 90, 45, 0, -45, -90.
+
+## Version 40
+
+I used:
+
+```
+python scripts/click_and_crop_v3.py --use_rigid_body --version_in 1 --version_out 40 --fixed_yaw 90 --z_offset 0.004
+```
+
+I've observed that height is a main reason for low performance.
+
+```
+Distances among the pixels, (x,y) only:
+mean:   44.1015196016
+median: 43.0813184571
+max:    67.2681202354
+min:    29.1547594742
+std:    8.11692923813
+```
+
+## Version 41
+
+```
+python scripts/click_and_crop_v3.py --use_rigid_body --version_in 1 --version_out 41 --fixed_yaw 45 --z_offset 0.006
+```
+Wow, height was really a problem.
+
+```
+Distances among the pixels, (x,y) only:
+mean:   72.0347893859
+median: 66.4078308635
+max:    167.242339137
+min:    32.0156211872
+std:    31.3462775802
+```
+
+## Version 42
+
+```
+python scripts/click_and_crop_v3.py --use_rigid_body --version_in 1 --version_out 42 --fixed_yaw 0 --z_offset 0.008
+```
+
+```
+Distances among the pixels, (x,y) only:
+mean:   51.9589669664
+median: 53.712196008
+max:    85.7088093489
+min:    29.0
+std:    15.1216980458
+```
+
+## Version 43
+
+```
+python scripts/click_and_crop_v3.py --use_rigid_body --version_in 1 --version_out 43 --fixed_yaw -45 --z_offset 0.009
+```
+
+I wised up and put in minimum and maximum commands for the z-coordinate. For safety.
+
+```
+Distances among the pixels, (x,y) only:
+mean:   53.616406975
+median: 50.7740090991
+max:    78.1024967591
+min:    43.2781700168
+std:    8.82015809427
+```
+
+## Version 44
+
+```
+python scripts/click_and_crop_v3.py --use_rigid_body --version_in 1 --version_out 44 --fixed_yaw -90 --z_offset 0.008
+```
+
+```
+Distances among the pixels, (x,y) only:
+mean:   39.8973511551
+median: 36.7695526217
+max:    59.6657355607
+min:    26.4007575649
+std:    10.5302936849
+```
+
+## Version 45
+
+```
+python scripts/click_and_crop_v3.py --use_rigid_body --version_in 1 --version_out 45 --z_offset 0.008
+```
+
+```
+Distances among the pixels, (x,y) only:
+mean:   47.1539969817
+median: 48.3735464898
+max:    75.133215025
+min:    19.7230829233
+std:    12.2597132369
 ```
