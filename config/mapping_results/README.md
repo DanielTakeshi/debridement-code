@@ -22,3 +22,4 @@ Trained from the automatically generated trajectories.
 
 - Use anything with `auto` in its name for the neural net. 
 - For rf correctors, use `rf_human_guided` stuff. Do NOT use `random_forest_predictor`.
+- OH, version 01 for the `auto` stuff now has a bunch of rigid body transformations embedded inside it. :-) One per each of the rotation discretizations.

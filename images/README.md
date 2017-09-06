@@ -66,7 +66,7 @@ Using DNN ONLY as a baselie:
 
 This time v22 and v23 have good timing benchmarks, even if their performance sucks.
 
-- `seeds_v24` debugging pumpkin seeds ... for some reason my results are worse? Darn ... we just have to argue that this task is very challenging!
+- `seeds_v24` debugging pumpkin seeds for DNN+RF (i.e. basically `seeds_v20` again ...) for some reason my results are worse? Darn ... we just have to argue that this task is very challenging!
 
 - `seeds_v25` raisins, DNN+RF
 

@@ -13,6 +13,8 @@ The data format should be the SAME as the manual stuff, i.e. there should be one
 
 - Use `keras_results` to store the networks from the `mapping.py` with the automatic setting on.
 
+- UPDATE September 6, 2017 (yeah this close to the deadline!!): I'm using version 01 now since something seems to have gotten messed up. Ugh.
+
 
 ## Manual, Human Calibration Data 
 

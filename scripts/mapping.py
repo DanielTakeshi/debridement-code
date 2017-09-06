@@ -3,12 +3,14 @@ Does the entire mapping pipeline. Saves stuff in ONE dictionary w/parameters. Ca
 handle both the manual and automatic calibration steps. I use argparse here so that 
 I remember which settings to use and don't mistakenly use an outdated configuration.
 
-Note that with the automatic collection, I should be dealing with rotations.
+Note that with the automatic collection, I should be dealing with rotations. And
+that should _still_ use the rigid body transformation.
 
 (c) September 2017 by Daniel Seita 
 """
 
 from autolab.data_collector import DataCollector
+from collections import defaultdict
 from dvrk.robot import *
 from keras.models import Sequential
 from keras.layers import Dense, Activation
@@ -27,7 +29,7 @@ C_LEFT_INFO  = pickle.load(open('config/camera_info_matrices/left.p',  'r'))
 C_RIGHT_INFO = pickle.load(open('config/camera_info_matrices/right.p', 'r'))
 
 
-def train_network(X_train, Y_train, X_mean, X_std):
+def train_network(X_train, Y_train, X_mean, X_std, version_out):
     """ 
     Trains a network to predict f(cx,cy,cz,yaw) = (rx,ry,rz). Here, `X_train` is 
     ALREADY normalized. X_train has shape (N,6), Y_train has shape (N,3). Thus, for
@@ -62,8 +64,9 @@ def train_network(X_train, Y_train, X_mean, X_std):
     predictions = model.predict(X_valid)
     ms_errors = 0
     num_valids = X_valid.shape[0]
-
-    with open("config/keras_results/simple_{}epochs.txt".format(epochs), "w") as text_file:
+    head = "config/keras_results/"
+    
+    with open(head+"simple_{}epochs_v{}.txt".format(epochs,version_out), "w") as text_file:
         for index in range(num_valids):
             data = X_valid[index, :]
             targ = Y_valid[index, :]
@@ -80,7 +83,7 @@ def train_network(X_train, Y_train, X_mean, X_std):
     print("num_valids: {}".format(num_valids))
     print("mse as I computed it: {}".format(ms_errors / num_valids))
 
-    modeldir = 'config/keras_results/simple_{}epochs.h5'.format(epochs)
+    modeldir = head+"simple_{}epochs_v{}.h5".format(epochs,version_out)
     model.save(modeldir)
     return modeldir
 
@@ -393,8 +396,14 @@ if __name__ == "__main__":
     pp = argparse.ArgumentParser()
     pp.add_argument('--collection', type=str, help='auto or manual')
     pp.add_argument('--version_in', type=int, help='0X for gripper, 1X for scissors')
+    pp.add_argument('--version_out', type=int, help='00 or 01')
     args = pp.parse_args()
     assert args.collection.lower() in ['auto', 'manual']
+    assert args.version_in is not None
+    assert args.version_out is not None
+
+    # SAVE STUFF HERE!
+    params = {}
 
     # Load left and right calibration data, since I saved them separately. That's only to 
     # maintain consistency w/the manual version (the auto one could be saved in one list).
@@ -439,19 +448,58 @@ if __name__ == "__main__":
             # We have two measurements per point.
             robot_3d.append( (pos_l+pos_r) / 2. ) 
 
-    robot_3d = np.array(robot_3d)
+    robot_3d     = np.array(robot_3d)
     rotations_3d = np.array(rotations_3d)
-    assert robot_3d.shape[1] == 3 and rotations_3d.shape[1] == 3
-    assert len(robot_3d.shape) == 2 and len(rotations_3d.shape) == 2
+    print("robot_3d.shape:     {}".format(robot_3d.shape))
+    print("rotations_3d.shape: {}".format(rotations_3d.shape))
+    assert robot_3d.shape[0] == rotations_3d.shape[0]      # (N,3) for each!
+    assert robot_3d.shape[1] == rotations_3d.shape[1] == 3 # (N,3) for each!
+    assert len(robot_3d.shape) == len(rotations_3d.shape) == 2 
 
-    # -------------------------------------
-    # For manual, get rigid body transform.
-    # -------------------------------------
+    # -------------------------------------------------------------------------
+    # For manual, get rigid body transform. For auto we have to split by cases.
+    # -------------------------------------------------------------------------
+    yaw_stuff = []
+
     if args.collection == 'manual':
         rigid_body_matrix, residuals_mapping = solve_rigid_transform(
                 camera_points_3d=points_3d,
                 robot_points_3d=robot_3d,
                 debug=True)
+
+    elif args.collection == 'auto':
+        yaws = [-90, -45, 0, 45, 90]    
+
+        # For each yaw, determine indices that match it in its range.
+        for yaw in yaws:
+            print("\nCURRENTLY ON YAW = {}".format(yaw))
+            y_min = yaw - 22.5
+            y_max = yaw + 22.5
+            indices = []
+
+            # Extract rotation, and get the stored yaw from rot[0].
+            for ii,rot in enumerate(rotations_3d):
+                if y_min <= rot[0] < y_max:
+                    indices.append(ii)
+
+            # Using our indices, we now extract the appropriate stuff by indexing.
+            indices = np.array(indices)
+            this_rb_matrix, this_internal_rf = solve_rigid_transform(
+                    camera_points_3d=points_3d[indices],
+                    robot_points_3d=robot_3d[indices],
+                    debug=False)
+            params['rigid_body_'+str(yaw)]  = this_rb_matrix
+            params['internal_rf_'+str(yaw)] = this_internal_rf
+            yaw_stuff.append( (indices.shape, points_3d[indices].shape, robot_3d[indices].shape) )
+
+    # Debugging ...
+    nums = 0
+    for item in yaw_stuff:
+        print(item)
+        nums += float(np.squeeze(item[0]))
+    print("Total # of points: {}".format(nums))
+    N = robot_3d.shape[0]
+    assert N == nums
 
     # ------------------------------------------------------------------------------------
     # For auto, get lots of stuff, e.g. deep networks. 
@@ -466,7 +514,7 @@ if __name__ == "__main__":
         assert X_train.shape[1] == 6 and y_train.shape[1] == 3 and X_train.shape[0] == y_train.shape[0]
         assert len(X_std) == len(X_mean) == 6
         X_train = (X_train - X_mean) / X_std
-        modeldir = train_network(X_train, y_train, X_mean, X_std)
+        modeldir = train_network(X_train, y_train, X_mean, X_std, args.version_out)
 
     # -----------------------------------------------------------------------------------
     # Develop correspondence between left and right camera pixels. I assume in real
@@ -480,7 +528,6 @@ if __name__ == "__main__":
     # ----------------------------------------
     # Save various matrices in one dictionary. 
     # ----------------------------------------
-    params = {}
     params['theta_l2r'] = theta_l2r
     params['theta_r2l'] = theta_r2l
 
@@ -488,12 +535,15 @@ if __name__ == "__main__":
         params['X_mean'] = X_mean
         params['X_std']  = X_std
         params['modeldir'] = modeldir
-        pickle.dump(params, open('config/mapping_results/auto_params_matrices_v'+VERSION+'.p', 'w'))
+        pickle.dump(params, 
+                open('config/mapping_results/auto_params_matrices_v'+str(args.version_out)+'.p', 'w'))
+        print("\nDictionary keys: {}".format(params.keys()))
 
     elif args.collection == 'manual':
         params['RB_matrix'] = rigid_body_matrix
         params['rf_residuals'] = residuals_mapping
-        pickle.dump(params, open('config/mapping_results/manual_params_matrices_v'+VERSION+'.p', 'w'))
+        pickle.dump(params, 
+                open('config/mapping_results/manual_params_matrices_v'+str(args.version_out)+'.p', 'w'))
 
     # -----------------------------------------------------------------------------
     # Let's see what happens if we _pretend_ we ignore the right camera's pixels.

@@ -141,7 +141,7 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
 
         predicted_pos[2] -= args.zoffset_safety
         utils.move(arm, predicted_pos, rotation, args.speed_class)
-        arm.open_gripper(degree=args.close_angle, time_sleep=1.5) # Experimentally, 1.5 seems to work.
+        arm.open_gripper(degree=args.close_angle, time_sleep=2.0) # Experimentally, 1.5 seems to work.
         #arm.open_gripper(degree=args.close_angle) # Doesn't work, it goes up as it closes. :-(
         predicted_pos[2] += args.zoffset_safety
         utils.move(arm, predicted_pos, rotation, args.speed_class)
