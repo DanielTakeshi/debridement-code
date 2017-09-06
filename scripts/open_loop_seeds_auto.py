@@ -12,12 +12,20 @@ DNN, pumpkins:
     python scripts/open_loop_seeds_auto.py --version_out 22 --max_num_add 8 --close_angle 30 --no_rf_correctors
 DNN, sunflowers:
     python scripts/open_loop_seeds_auto.py --version_out 23 --max_num_add 8 --close_angle 15 --no_rf_correctors
-DNN+RF, pumpkins, v2 (now that I got the timing set up and better understanding of failure cases...):
-    python scripts/open_loop_seeds_auto.py --version_out 24 --max_num_add 8 --close_angle 30
+    
 DNN+RF, raisins from Ken:
     python scripts/open_loop_seeds_auto.py --version_out 25 --max_num_add 8 --close_angle 30
 DNN, raisins from Ken:
     python scripts/open_loop_seeds_auto.py --version_out 26 --max_num_add 8 --close_angle 30 --no_rf_correctors
+
+Second time around for pumpkin seeds (September 6, 2017):
+
+DNN+RF, pumpkins, then DNN only:
+    
+    python scripts/open_loop_seeds_auto.py --version_in 1 --version_out 28 \
+            --max_num_add 8 --close_angle 30 --z_offset -0.002 --zoffset_safety 0.006
+    python scripts/open_loop_seeds_auto.py --version_in 1 --version_out 29 \
+            --max_num_add 8 --close_angle 30 --z_offset -0.003 --zoffset_safety 0.006 --no_rf_correctors
 
 Notes:
 
@@ -43,6 +51,23 @@ from autolab.data_collector import DataCollector
 from dvrk.robot import *
 from keras.models import load_model
 np.set_printoptions(suppress=True, linewidth=200)
+
+# Try to make this over where a bin/container is located to hold the dropped seeds.
+bin_position = [-0.01, 0.06, -0.135]
+
+
+def get_key_from_rot(rotation):
+    """ Yeah I know it's ugly code... """
+    if rotation < -67.5: 
+        return -90
+    elif rotation < -22.5: 
+        return -45
+    elif rotation <  22.5: 
+        return 0
+    elif rotation <  67.5: 
+        return 45
+    else:
+        return 90
 
 
 def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, args):
@@ -75,11 +100,10 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
     net_std   = PARAMS['nnet']['X_std']
     assert not os.path.exists(tosave_txt)
     text_file = open(tosave_txt, 'w')
+    text_file.write("net modeldir: {}\n".format(PARAMS['nnet']['modeldir']))
     text_file.write("network mean: {}\n".format(net_mean))
     text_file.write("network std:  {}\n".format(net_std))
 
-    # Try to make this over where a bin/container is located to hold the dropped seeds.
-    bin_position = [-0.025, 0.06, -0.125]
     start_yaw = 0
     start_pitch, start_roll = utils.get_interpolated_pitch_and_roll(start_yaw)
     utils.move(arm, bin_position, [start_yaw,start_pitch,start_roll], args.speed_class)
@@ -112,16 +136,7 @@ def motion_planning(l_img, r_img, l_cnts, r_cnts, tosave_txt, PARAMS, arm, d, ar
         if args.no_rf_correctors:
             text_file.write("\t(No RF corrector)\n")
         else:
-            if rotation[0] < -67.5: 
-                yaw_key = -90
-            elif rotation[0] < -22.5: 
-                yaw_key = -45
-            elif rotation[0] <  22.5: 
-                yaw_key =   0
-            elif rotation[0] <  67.5: 
-                yaw_key =  45
-            else:
-                yaw_key =  90
+            yaw_key = int(get_key_from_rot(rotation[0]))
             residual_vec = np.squeeze( PARAMS[yaw_key].predict([predicted_pos]) )    
             predicted_pos = predicted_pos - residual_vec
             text_file.write("\tresidual vector from RF corrector: {}\n".format(residual_vec))
@@ -222,7 +237,7 @@ if __name__ == "__main__":
     Use 2X for neural net stuff. 
     """
     pp = argparse.ArgumentParser()
-    pp.add_argument('--version_in', type=int, default=0, help='For now, it\'s 0')
+    pp.add_argument('--version_in', type=int, default=0, help='CHECK')
     pp.add_argument('--version_out', type=int, help='See `images/README.md`, etc.')
     pp.add_argument('--close_angle', type=int, default=30) 
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
@@ -231,8 +246,8 @@ if __name__ == "__main__":
     pp.add_argument('--speed_class', type=str, default='Fast')
     pp.add_argument('--x_offset', type=float, default=0.000)
     pp.add_argument('--y_offset', type=float, default=0.000)
-    pp.add_argument('--z_offset', type=float, default=-0.002) # Tweak this value!!
-    pp.add_argument('--zoffset_safety', type=float, default=0.006) # And this one ...
+    pp.add_argument('--z_offset', type=float, default=0.000)
+    pp.add_argument('--zoffset_safety', type=float, default=0.005)
     args = pp.parse_args()
 
     # Check the image versions, etc.
@@ -252,9 +267,14 @@ if __name__ == "__main__":
 
     # Load the parameters ...
     PARAMS = {}
-    yaws = [90, 45, 0, -45, -90, None]      # IMPORTANT!
-    nums = [str(x) for x in range(20,25+1)] # IMPORTANT!
+    if IN_VERSION == '00':
+        yaws = [90, 45, 0, -45, -90, None]
+        nums = [str(x) for x in range(20,25+1)]
+    elif IN_VERSION == '01':
+        yaws = [90, 45, 0, -45, -90]
+        nums = [str(x) for x in range(40,44+1)]
     assert len(yaws) == len(nums)
+
     head = 'config/mapping_results/rf_human_guided_yesz_v'
     for (yy,nn) in zip(yaws,nums):
         if yy is not None: # Ignore `None` case for now.
@@ -265,6 +285,7 @@ if __name__ == "__main__":
     # Initialize, etc...
     arm, _, d = utils.initializeRobots()
     arm.close_gripper()
+    utils.move(arm, bin_position, [0,10,-165], 'Fast')
 
     # Let's do a pre-processing step where we first filter for contours and inspect.
     # This will also save the images for debugging purposes later.
