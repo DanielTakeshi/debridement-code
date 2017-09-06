@@ -91,6 +91,9 @@ if __name__ == "__main__":
     pp.add_argument('--guidelines_dir', type=str, default='traj_collector/guidelines.p')
     args = pp.parse_args()
 
+    # Just to check if I want 0 or 1 ...
+    assert args.version_in != 0, "Just to be clear, you want version in to be 0?"
+
     IN_VERSION  = str(args.version_in).zfill(2)
     OUT_VERSION = str(args.version_out).zfill(2)
     OUTPUT_FILE = 'config/calibration_results/data_human_guided_v'+OUT_VERSION+'.p'
@@ -116,6 +119,7 @@ if __name__ == "__main__":
     utils.call_wait_key(cv2.imshow("left camera, used for contours", d.left_image_proc))
 
     # Don't forget to load our trained neural network!
+    print("Neural Network model directory: {}".format(PARAMS['modeldir']))
     f_network = load_model(PARAMS['modeldir'])
     net_mean  = PARAMS['X_mean']
     net_std   = PARAMS['X_std']
@@ -155,7 +159,7 @@ if __name__ == "__main__":
         predicted_pos[1] += args.y_offset
         predicted_pos[2] += args.z_offset
 
-        # Robot moves to that point and will likely be off. Let the camera refresh.
+        # Robot moves to that point and is likely off. Let the camera refresh. Don't move until then!
         utils.move(arm, predicted_pos, rotation, 'Slow')
         time.sleep(4)
 

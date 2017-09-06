@@ -82,9 +82,16 @@ if __name__ == "__main__":
     For now I have six indiviual RFs. To make a meta RF with the 5 RFs corresponding
     to yaw values, first detect for a yaw. Then choose which of the five yaw RFs to use. 
     """
-    num_trees = 100 # Since this seems like a good number.
-    nums = [str(x) for x in range(20,25+1)] # IMPORTANT!
-    yaws = [90, 45, 0, -45, -90, None] # IMPORTANT!
+
+    # UPDATE: this is the "second" version, i.e. v01 which I did September 6.
+    VERSION = 1
+    num_trees = 100         # Since this seems like a good number.
+    if VERSION == 0:
+        nums = [str(x) for x in range(20,25+1)]
+        yaws = [90, 45, 0, -45, -90, None]
+    elif VERSION == 1:
+        nums = [str(x) for x in range(40,44+1)]
+        yaws = [90, 45, 0, -45, -90]
     
     names_input     = ['config/calibration_results/data_human_guided_v'+vv+'.p' for vv in nums]
     names_output_v0 = ['config/mapping_results/rf_human_guided_yesz_v'+vv+'.p' for vv in nums]
