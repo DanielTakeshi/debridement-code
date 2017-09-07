@@ -297,36 +297,81 @@ def detect_seed_orientation(left_im, right_im, left_contours, right_contours, ar
 if __name__ == "__main__":
     """ See the top of the file for program-wide arguments. """
     arm, _, d = utils.initializeRobots(sleep_time=2)
-    arm.home()
-    arm.close_gripper()
-    print("arm home: {}".format(arm.get_current_cartesian_position()))
+    #arm.home()
+    #arm.close_gripper()
+    #print("arm home: {}".format(arm.get_current_cartesian_position()))
 
-    # Test with angles. NOTE: no need to have yaw be outside [-89.9, 90].
-    #utils.show_images(d)
-    #rotations = [ (-90, 10, -170) for i in range(9)]
-    #motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
+    ### # Test with angles. NOTE: no need to have yaw be outside [-89.9, 90].
+    ### #utils.show_images(d)
+    ### #rotations = [ (-90, 10, -170) for i in range(9)]
+    ### #motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
 
-    ## Test which rotations make sense.
-    #for rot in rotations:
-    #    print("we are moving to rot {}".format(rot))
-    #    utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
-    #    time.sleep(3)
+    ### ## Test which rotations make sense.
+    ### #for rot in rotations:
+    ### #    print("we are moving to rot {}".format(rot))
+    ### #    utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
+    ### #    time.sleep(3)
 
-    # Test proof of concept of the need for the automatic trajectory collection.
-    #proof_of_concept_part_one(d.left_image.copy(), 
-    #                          d.right_image.copy(), 
-    #                          d.left_contours, 
-    #                          d.right_contours, 
-    #                          arm)
-    #proof_of_concept_part_two(d.left_image.copy(), 
-    #                          d.right_image.copy(), 
-    #                          d.left_contours, 
-    #                          d.right_contours, 
-    #                          arm)
+    ### # Test proof of concept of the need for the automatic trajectory collection.
+    ### #proof_of_concept_part_one(d.left_image.copy(), 
+    ### #                          d.right_image.copy(), 
+    ### #                          d.left_contours, 
+    ### #                          d.right_contours, 
+    ### #                          arm)
+    ### #proof_of_concept_part_two(d.left_image.copy(), 
+    ### #                          d.right_image.copy(), 
+    ### #                          d.left_contours, 
+    ### #                          d.right_contours, 
+    ### #                          arm)
 
-    # Now test if we can detect seed orientations.
-    detect_seed_orientation(d.left_image.copy(), 
-                            d.right_image.copy(), 
-                            d.left_contours, 
-                            d.right_contours, 
-                            arm, d)
+    ### # Now test if we can detect seed orientations.
+    ### detect_seed_orientation(d.left_image.copy(), 
+    ###                         d.right_image.copy(), 
+    ###                         d.left_contours, 
+    ###                         d.right_contours, 
+    ###                         arm, d)
+
+
+    # NEW! September 7, 2017, use this to argue for why there's inherent random noise.
+    yaw = 0
+    pitch, roll = utils.get_interpolated_pitch_and_roll(yaw)
+    rotation = [yaw, pitch, roll]
+
+    targ1 = [-0.01, 0.06, -0.13]
+    targ2 = [-0.02, 0.07, -0.14]
+    positions1 = []
+    positions2 = []
+
+    for i in range(20):
+        utils.move(arm, targ1, rotation, 'Fast')
+        pos, rot = utils.lists_of_pos_rot_from_frame(
+                arm.get_current_cartesian_position()         
+        )
+        print("{}".format(pos))
+        positions1.append(pos)
+        time.sleep(2)
+
+        utils.move(arm, targ2, rotation, 'Fast')
+        pos, rot = utils.lists_of_pos_rot_from_frame(
+                arm.get_current_cartesian_position()         
+        )
+        print("\t{}".format(pos))
+        positions2.append(pos)
+        time.sleep(2)
+
+    positions1 = np.array(positions1)
+    positions2 = np.array(positions2)
+
+    print("\n\tPositions 1:")
+    print(positions1)
+    print("mean: {}".format(np.mean(positions1, axis=0)))
+    print("std:  {}".format(np.std(positions1, axis=0)))
+    print("min:  {}".format(np.min(positions1, axis=0)))
+    print("max:  {}".format(np.max(positions1, axis=0)))
+
+    print("\n\tPositions 2:")
+    print(positions2)
+    print("mean: {}".format(np.mean(positions2, axis=0)))
+    print("std:  {}".format(np.std(positions2, axis=0)))
+    print("min:  {}".format(np.min(positions2, axis=0)))
+    print("max:  {}".format(np.max(positions2, axis=0)))
