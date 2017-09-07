@@ -2,7 +2,7 @@
 Open loop for the case when we have a bunch of seeds scattered with random rotations.
 This is designed to use data originally from the automatically collected trajectories.
 
-Usage:
+Usage (EDIT: OUTDATED...):
 
 DNN+RF, pumpkins:
     python scripts/open_loop_seeds_auto.py --version_out 20 --max_num_add 8 --close_angle 30
@@ -18,13 +18,21 @@ DNN+RF, raisins from Ken:
 DNN, raisins from Ken:
     python scripts/open_loop_seeds_auto.py --version_out 26 --max_num_add 8 --close_angle 30 --no_rf_correctors
 
-Second time around for pumpkin seeds (September 6, 2017):
+
+SECOND time around for pumpkin seeds (September 6, 2017) PUT THESE IN BASH SCRIPTS, GAAAH:
 
 DNN+RF, pumpkins, then DNN only:
     
     python scripts/open_loop_seeds_auto.py --version_in 1 --version_out 28 \
             --max_num_add 8 --close_angle 30 --z_offset -0.002 --zoffset_safety 0.006
     python scripts/open_loop_seeds_auto.py --version_in 1 --version_out 29 \
+            --max_num_add 8 --close_angle 30 --z_offset -0.003 --zoffset_safety 0.006 --no_rf_correctors
+
+DNN+RF, raisins, then DNN only:
+    
+    python scripts/open_loop_seeds_auto.py --version_in 1 --version_out 30 \
+            --max_num_add 8 --close_angle 30 --z_offset -0.002 --zoffset_safety 0.006
+    python scripts/open_loop_seeds_auto.py --version_in 1 --version_out 31 \
             --max_num_add 8 --close_angle 30 --z_offset -0.003 --zoffset_safety 0.006 --no_rf_correctors
 
 Notes:

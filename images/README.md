@@ -71,3 +71,5 @@ This time v22 and v23 have good timing benchmarks, even if their performance suc
 - `seeds_v25` raisins, DNN+RF
 
 - `seeds_v26` raisins, DNN only
+
+EDIT: just look at the bash scripts, lol ...
