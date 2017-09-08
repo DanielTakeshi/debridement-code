@@ -294,45 +294,10 @@ def detect_seed_orientation(left_im, right_im, left_contours, right_contours, ar
     r_angle = r_ellipse[2]
 
 
-if __name__ == "__main__":
-    """ See the top of the file for program-wide arguments. """
-    arm, _, d = utils.initializeRobots(sleep_time=2)
-    #arm.home()
-    #arm.close_gripper()
-    #print("arm home: {}".format(arm.get_current_cartesian_position()))
-
-    ### # Test with angles. NOTE: no need to have yaw be outside [-89.9, 90].
-    ### #utils.show_images(d)
-    ### #rotations = [ (-90, 10, -170) for i in range(9)]
-    ### #motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
-
-    ### ## Test which rotations make sense.
-    ### #for rot in rotations:
-    ### #    print("we are moving to rot {}".format(rot))
-    ### #    utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
-    ### #    time.sleep(3)
-
-    ### # Test proof of concept of the need for the automatic trajectory collection.
-    ### #proof_of_concept_part_one(d.left_image.copy(), 
-    ### #                          d.right_image.copy(), 
-    ### #                          d.left_contours, 
-    ### #                          d.right_contours, 
-    ### #                          arm)
-    ### #proof_of_concept_part_two(d.left_image.copy(), 
-    ### #                          d.right_image.copy(), 
-    ### #                          d.left_contours, 
-    ### #                          d.right_contours, 
-    ### #                          arm)
-
-    ### # Now test if we can detect seed orientations.
-    ### detect_seed_orientation(d.left_image.copy(), 
-    ###                         d.right_image.copy(), 
-    ###                         d.left_contours, 
-    ###                         d.right_contours, 
-    ###                         arm, d)
-
-
-    # NEW! September 7, 2017, use this to argue for why there's inherent random noise.
+def inherent_noise(arm):
+    """
+    NEW! September 7, 2017, use this to argue for why there's inherent random noise.
+    """
     yaw = 0
     pitch, roll = utils.get_interpolated_pitch_and_roll(yaw)
     rotation = [yaw, pitch, roll]
@@ -375,3 +340,43 @@ if __name__ == "__main__":
     print("std:  {}".format(np.std(positions2, axis=0)))
     print("min:  {}".format(np.min(positions2, axis=0)))
     print("max:  {}".format(np.max(positions2, axis=0)))
+
+
+if __name__ == "__main__":
+    """ See the top of the file for program-wide arguments. """
+    arm, _, d = utils.initializeRobots(sleep_time=2)
+    #arm.home()
+    #arm.close_gripper()
+    #print("arm home: {}".format(arm.get_current_cartesian_position()))
+
+    ### # Test with angles. NOTE: no need to have yaw be outside [-89.9, 90].
+    ### #utils.show_images(d)
+    ### #rotations = [ (-90, 10, -170) for i in range(9)]
+    ### #motion_planning(d.left_contours_by_size, d.left_image, arm, rotations)
+
+    ### ## Test which rotations make sense.
+    ### #for rot in rotations:
+    ### #    print("we are moving to rot {}".format(rot))
+    ### #    utilities.move(arm, HOME_POS, rot, SPEED_CLASS)
+    ### #    time.sleep(3)
+
+    ### # Test proof of concept of the need for the automatic trajectory collection.
+    ### #proof_of_concept_part_one(d.left_image.copy(), 
+    ### #                          d.right_image.copy(), 
+    ### #                          d.left_contours, 
+    ### #                          d.right_contours, 
+    ### #                          arm)
+    ### #proof_of_concept_part_two(d.left_image.copy(), 
+    ### #                          d.right_image.copy(), 
+    ### #                          d.left_contours, 
+    ### #                          d.right_contours, 
+    ### #                          arm)
+
+    ### # Now test if we can detect seed orientations.
+    ### detect_seed_orientation(d.left_image.copy(), 
+    ###                         d.right_image.copy(), 
+    ###                         d.left_contours, 
+    ###                         d.right_contours, 
+    ###                         arm, d)
+
+    inherent_noise(arm)
