@@ -37,49 +37,51 @@ def train_network(X_train, y_train, X_valid, y_valid, X_mean, X_std):
     N, input_dim = X_train.shape
     epochs = 400
     batch_size = 32
+    num_times = 10 # For error regions ...
 
-    model = Sequential()
-    model.add(Dense(300, activation='relu', input_dim=input_dim))
-    model.add(Dense(300, activation='relu')) 
-    model.add(Dense(300, activation='relu'))
-    model.add(Dense(3, activation=None))
-    model.compile(optimizer='adam', loss='mse')
+    for tt in range(num_times):
 
-    # Use `history.history` to get `loss` and `val_loss` lists.
-    history = model.fit(X_train, y_train, 
-                        epochs=epochs, 
-                        batch_size=batch_size, 
-                        validation_data=(X_valid, y_valid))
-    stats['loss'] = history.history['loss']
-    stats['val_loss'] = history.history['val_loss']
+        model = Sequential()
+        model.add(Dense(300, activation='relu', input_dim=input_dim))
+        model.add(Dense(300, activation='relu')) 
+        model.add(Dense(300, activation='relu'))
+        model.add(Dense(3, activation=None))
+        model.compile(optimizer='adam', loss='mse')
 
-    # Evaluate predictions
-    y_valid_pred = model.predict(X_valid)
-    ms_errors = 0.0
-    num_valids = X_valid.shape[0]
+        # Use `history.history` to get `loss` and `val_loss` lists.
+        history = model.fit(X_train, y_train, 
+                            epochs=epochs, 
+                            batch_size=batch_size, 
+                            validation_data=(X_valid, y_valid))
+        stats['loss_'+str(tt)] = history.history['loss']
+        stats['val_loss_'+str(tt)] = history.history['val_loss']
 
-    # This WILL overwrite ... this is mainly for debugging.
-    with open("keras_results/numdata{}_epochs{}.txt".format(N, epochs), "w") as text_file:
-        for index in range(num_valids):
-            data = X_valid[index, :]
-            targ = y_valid[index, :]
-            pred = y_valid_pred[index, :]
-            data = (data * X_std) + X_mean # Un-normalize the data!
-            mse = np.linalg.norm(pred-targ) ** 2
-            ms_errors += mse
+        # Evaluate predictions
+        y_valid_pred = model.predict(X_valid)
+        ms_errors = 0.0
+        num_valids = X_valid.shape[0]
 
-            text_file.write("[{:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}]   ===>   [{:.4f}, {:.4f}, {:.4f}],  actual: [{:.4f}, {:.4f}, {:.4f}] (mse: {:4f})\n".format(data[0],data[1],data[2],data[3],data[4],data[5], pred[0],pred[1],pred[2],targ[0],targ[1],targ[2], mse))
-    print("mse as I computed it: {}".format(ms_errors / num_valids))
+        ## # This WILL overwrite ... this is mainly for debugging.
+        ## with open("keras_results/numdata{}_epochs{}.txt".format(N, epochs), "w") as text_file:
+        ##     for index in range(num_valids):
+        ##         data = X_valid[index, :]
+        ##         targ = y_valid[index, :]
+        ##         pred = y_valid_pred[index, :]
+        ##         data = (data * X_std) + X_mean # Un-normalize the data!
+        ##         mse = np.linalg.norm(pred-targ) ** 2
+        ##         ms_errors += mse
 
-    # Collect additional stats for reporting in the ICRA 2018 submission.
-    val_abs_errors = np.abs(y_valid_pred - y_valid)
-    per_coord_val_errors = np.mean(val_abs_errors, axis=0)
-    per_coord_std = np.std(val_abs_errors, axis=0)
-    assert len(per_coord_val_errors) == 3
-    assert len(per_coord_std) == 3
-    stats['per_coord_val_errors'] = per_coord_val_errors
-    stats['per_coord_std'] = per_coord_std
-    print("per_coord_val_errors: {}".format(per_coord_val_errors))
+        ##         text_file.write("[{:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}]   ===>   [{:.4f}, {:.4f}, {:.4f}],  actual: [{:.4f}, {:.4f}, {:.4f}] (mse: {:4f})\n".format(data[0],data[1],data[2],data[3],data[4],data[5], pred[0],pred[1],pred[2],targ[0],targ[1],targ[2], mse))
+        ## print("mse as I computed it: {}".format(ms_errors / num_valids))
+
+        # Collect additional stats for reporting in the ICRA 2018 submission.
+        val_abs_errors = np.abs(y_valid_pred - y_valid)
+        per_coord_val_errors = np.mean(val_abs_errors, axis=0)
+        per_coord_std = np.std(val_abs_errors, axis=0)
+        assert len(per_coord_val_errors) == 3
+        assert len(per_coord_std) == 3
+        stats['per_coord_val_errors_'+str(tt)] = per_coord_val_errors
+        stats['per_coord_std_'+str(tt)] = per_coord_std
 
     return stats
 
@@ -112,10 +114,13 @@ def plot(stats, numbers):
 
 
 if __name__ == "__main__":
-    """ Load stuff. Remember, the data X_train is ALREADY normalized. """
+    """ 
+    Load stuff. Remember, the data X_train is NOT normalized. 
+    """
     X_train = np.load("data/X_train.npy")
     X_mean  = np.load("data/X_mean.npy")
     X_std   = np.load("data/X_std.npy")
+    X_train = (X_train - X_mean) / X_std
     y_train = np.load("data/y_train.npy")
     print("X_train.shape: {}".format(X_train.shape))
     print("y_train.shape: {}".format(y_train.shape))
@@ -125,7 +130,7 @@ if __name__ == "__main__":
     print("X_std: {}".format(X_std))
 
     shuffle = np.random.permutation(X_train.shape[0])
-    X_train = X_train[shuffle] # Already normalized!
+    X_train = X_train[shuffle] # Must be normalized!
     y_train = y_train[shuffle]
     N = X_train.shape[0]
     valid_split = 0.2    
@@ -145,7 +150,7 @@ if __name__ == "__main__":
     print("y_valid.shape: {}".format(y_valid.shape))
 
     # Use this to determine how much "ablation"; percentages of full training data.
-    percentages = [0.1, 0.25, 0.5, 0.75, 1.0]
+    percentages = [0.25, 0.5, 0.75, 1.0]
     numbers = [int(pp*num_train) for pp in percentages]
     print("\nnumbers in training data: {}".format(numbers))
     trial_stats = {}
@@ -159,4 +164,6 @@ if __name__ == "__main__":
             nn, X_train_nn.shape, y_train_nn.shape))
         trial_stats[nn] = train_network(X_train_nn, y_train_nn, X_valid, y_valid, X_mean, X_std)
 
-    plot(trial_stats, numbers)
+    np.save("trial_stats", trial_stats)
+
+    # Before we plotted here. But now let's just make error bars. :-)
