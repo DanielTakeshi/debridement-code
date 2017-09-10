@@ -16,6 +16,8 @@
   
   - Use `collect_together.py` to get stats and an image.
 
+  - Important!! Use `click_and_crop_v4.py` for the NON-CALIBRATED baseline.
+
 ## Data Collection for Calibration
 
 This calibration data is stored in the `icra2018/config` directory. See the README file there for details.

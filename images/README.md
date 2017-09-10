@@ -73,3 +73,6 @@ This time v22 and v23 have good timing benchmarks, even if their performance suc
 - `seeds_v26` raisins, DNN only
 
 EDIT: just look at the bash scripts, lol ...
+
+
+Use `seeds_v5X` (the 50s) for the non-calibrated baselines. Yeah these should suck.
