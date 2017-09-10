@@ -18,20 +18,22 @@ from dvrk.robot import *
 np.set_printoptions(suppress=True)
 
 
-def is_this_clean(val, theta_l2r):
-    """ Note: I return the distance as the second tuple element, or -1 if irrelevant. """
+def is_this_clean(val, theta_l2r, tolerance=11.38):
+    """ 
+    Note: I return the distance as the second tuple element, or -1 if irrelevant. 
+    """
     frame, l_center, r_center = val
     if (l_center == (-1,-1) or r_center == (-1,-1)):
         return False, -1
     left_pt_hom = np.array([l_center[0], l_center[1], 1])
     right_pt = left_pt_hom.dot(theta_l2r)
     dist = np.sqrt( (r_center[0]-right_pt[0])**2 + (r_center[1]-right_pt[1])**2 )
-    if dist >= 12:
+    if dist >= tolerance:
         return False, dist
     return True, dist
 
 
-def filter_points_in_results(camera_map, directory):
+def filter_points_in_results(camera_map, directory, do_print=False, num_skip=1):
     """ Iterate through all trajectories to concatenate the data.
 
     Stuff to filter:
@@ -56,18 +58,23 @@ def filter_points_in_results(camera_map, directory):
 
     for td in traj_dirs:
         traj_data = pickle.load(open(directory+td+'/traj_poses_list.p', 'r'))
-        assert len(traj_data) > 1 and len(traj_data[0]) == 3
+        assert (len(traj_data) > 1) and (len(traj_data[0]) == 3) and (len(traj_data) % 4 == 0)
         num_td = 0
+        # Updated `September 10, 2017` so that I can see the percentage w/out the "extra rotation."
+        # traj_data = traj_data[::num_skip] 
+        traj_data = [val for i,val in enumerate(traj_data) if i%4 != 0]
         
         for (i, val) in enumerate(traj_data):
             total += 1
             isclean, dist = is_this_clean(val, camera_map)
             if isclean:
-                print("{}  CLEAN : {} (dist {})".format(str(i).zfill(3), val, dist)) # Clean
+                if do_print:
+                    print("{}  CLEAN : {} (dist {})".format(str(i).zfill(3), val, dist)) # Clean
                 clean_data.append(val)
                 num_td += 1
             else:
-                print("{}        : {} (dist {})".format(str(i).zfill(3), val, dist)) # Dirty
+                if do_print:
+                    print("{}        : {} (dist {})".format(str(i).zfill(3), val, dist)) # Dirty
 
         print("dir {}, len(raw_data) {}, len(clean_data) {}\n".format(td, len(traj_data), num_td))
 
@@ -104,10 +111,10 @@ if __name__ == "__main__":
     Then, clean up the data using various heuristics (see the method documentation for
     details). Then process it into a form that I need, and save it.
     """
-    params = pickle.load(open('config/mapping_results/manual_params_matrices_v00.p', 'r'))
+    params = pickle.load(open('config/mapping_results/manual_params_matrices_v02.p', 'r'))
     directory = 'traj_collector/'
 
-    clean_data = filter_points_in_results(params['theta_l2r'], directory)
-    proc_left, proc_right = process_data(clean_data)
-    pickle.dump(proc_left,  open('config/grid_auto/auto_calib_left_00.p', 'w'))
-    pickle.dump(proc_right, open('config/grid_auto/auto_calib_right_00.p', 'w'))
+    clean_data = filter_points_in_results(params['theta_l2r'], directory, do_print=False)
+    #proc_left, proc_right = process_data(clean_data)
+    #pickle.dump(proc_left,  open('config/grid_auto/auto_calib_left_00.p', 'w'))
+    #pickle.dump(proc_right, open('config/grid_auto/auto_calib_right_00.p', 'w'))

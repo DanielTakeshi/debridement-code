@@ -452,14 +452,14 @@ if __name__ == "__main__":
     rotations_3d = np.array(rotations_3d)
     print("robot_3d.shape:     {}".format(robot_3d.shape))
     print("rotations_3d.shape: {}".format(rotations_3d.shape))
-    assert robot_3d.shape[0] == rotations_3d.shape[0]      # (N,3) for each!
-    assert robot_3d.shape[1] == rotations_3d.shape[1] == 3 # (N,3) for each!
-    assert len(robot_3d.shape) == len(rotations_3d.shape) == 2 
+    if args.collection == 'auto':
+        assert robot_3d.shape[0] == rotations_3d.shape[0]      # (N,3) for each!
+        assert robot_3d.shape[1] == rotations_3d.shape[1] == 3 # (N,3) for each!
+        assert len(robot_3d.shape) == len(rotations_3d.shape) == 2 
 
     # -------------------------------------------------------------------------
     # For manual, get rigid body transform. For auto we have to split by cases.
     # -------------------------------------------------------------------------
-    yaw_stuff = []
 
     if args.collection == 'manual':
         rigid_body_matrix, residuals_mapping = solve_rigid_transform(
@@ -468,6 +468,7 @@ if __name__ == "__main__":
                 debug=True)
 
     elif args.collection == 'auto':
+        yaw_stuff = []
         yaws = [-90, -45, 0, 45, 90]    
 
         # For each yaw, determine indices that match it in its range.
@@ -492,14 +493,14 @@ if __name__ == "__main__":
             params['internal_rf_'+str(yaw)] = this_internal_rf
             yaw_stuff.append( (indices.shape, points_3d[indices].shape, robot_3d[indices].shape) )
 
-    # Debugging ...
-    nums = 0
-    for item in yaw_stuff:
-        print(item)
-        nums += float(np.squeeze(item[0]))
-    print("Total # of points: {}".format(nums))
-    N = robot_3d.shape[0]
-    assert N == nums
+        # Debugging ...
+        nums = 0
+        for item in yaw_stuff:
+            print(item)
+            nums += float(np.squeeze(item[0]))
+        print("Total # of points: {}".format(nums))
+        N = robot_3d.shape[0]
+        assert N == nums
 
     # ------------------------------------------------------------------------------------
     # For auto, get lots of stuff, e.g. deep networks. 
