@@ -1,4 +1,4 @@
-""" Easy to do ablation studies. :-) 
+""" A bar graph.
 
 (c) September 2017 by Daniel Seita
 """
@@ -59,41 +59,4 @@ def plot(data, ordered_keys):
 
 
 if __name__ == "__main__":
-    """ 
-    Load stuff. Remember, the data X_train is NOT normalized. 
-    """
-    num_train = 1552
-    percentages = [0.25, 0.5, 0.75, 1.0]
-    numbers = [int(pp*num_train) for pp in percentages]
-
-    trial_stats = np.load('trial_stats.npy')[()]
-
-    data = {} # What we use to plot in the figure
-    per_mean = {} # For table (mean)
-    per_std = {} # For table (std), but I think I'll ignore this. It's the
-    # standard deviation for each of the ten trials and it doesn't seem to make
-    # sense ... just list the average over the per_mean stuff.
-
-    ordered_keys = sorted(trial_stats.keys())
-
-    for key in ordered_keys:
-        print("for key {}, the sub-dictionary has keys:\n\t{}".format(
-            key, trial_stats[key].keys()))
-        data[key] = np.array(
-                [trial_stats[key]['val_loss_'+str(tt)] for tt in range(10)]
-        )
-        per_mean[key] = np.array(
-                [trial_stats[key]['per_coord_val_errors_'+str(tt)] for tt in range(10)]
-        )
-        per_std[key] = np.array(
-                [trial_stats[key]['per_coord_std_'+str(tt)] for tt in range(10)]
-        )
-        print("\ndata[{}].shape: {}".format(key, data[key].shape))
-        print("per_mean[{}].shape: {}".format(key, per_mean[key].shape))
-        print("per_std[{}].shape: {}".format(key, per_std[key].shape))
-
-    for key in ordered_keys:
-        mean_over_mean = np.mean(per_mean[key], axis=0)
-        print("key {}, per-mean: {}".format(key, mean_over_mean))
-        print(per_mean[key])
-    plot(data, ordered_keys)
+    results = np.load('results.npy')[()]
