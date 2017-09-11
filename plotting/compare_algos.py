@@ -166,14 +166,14 @@ def rfs(X_data, y_data, kf, num_trees, max_depth=None):
     return all_stats
 
 
-def dnn(X_data, y_data, kf, num_hidden):
+def dnn(X_data, y_data, kf, num_units, num_hidden):
     """ Pray that this has best performance because then it's like I'm
     retroactively justifying my claims. :-)
     
     Uses a DNN with Keras. 
     """
     print("\n\nNOW DOING: DNN\n")
-    print("num_hidden: {}".format(num_hidden))
+    print("num_hidden: {}, num_units: {}".format(num_hidden, num_units))
     all_stats = []
     batch_size = 32
     epochs = 100
@@ -184,11 +184,13 @@ def dnn(X_data, y_data, kf, num_hidden):
         stats = defaultdict(list)
 
         model = Sequential()
-        model.add(Dense(num_hidden, activation='relu', input_dim=6))
-        model.add(Dense(num_hidden, activation='relu')) 
-        model.add(Dense(num_hidden, activation='relu'))
+        model.add(Dense(num_units, activation='relu', input_dim=6))
+        for _ in range(num_hidden-1):
+            model.add(Dense(num_units, activation='relu')) 
         model.add(Dense(3, activation=None))
         model.compile(optimizer='adam', loss='mse')
+        model.summary()
+
         history = model.fit(X_train, y_train, 
                             verbose=0,
                             epochs=epochs, 
@@ -221,8 +223,8 @@ if __name__ == "__main__":
     # return, then `list[i]` contains statistics from trial i, where i is
     # zero-indexed.
     # --------------------------------------------------------------------------
-    results['Lin']   = lin(X_data, y_data, kf)
-    results['Lin_Q'] = lin(X_data_q, y_data_q, kf_q)
+    results['Lin_EA'] = lin(X_data, y_data, kf)
+    results['Lin_Q']  = lin(X_data_q, y_data_q, kf_q)
 
     results['RFs_t10_dN']   = rfs(X_data, y_data, kf, num_trees=10, max_depth=None)
     results['RFs_t100_dN']  = rfs(X_data, y_data, kf, num_trees=100, max_depth=None)
@@ -230,8 +232,10 @@ if __name__ == "__main__":
     results['RFs_t100_d10']  = rfs(X_data, y_data, kf, num_trees=100, max_depth=10)
     results['RFs_t100_d100'] = rfs(X_data, y_data, kf, num_trees=100, max_depth=100)
 
-    results['DNN_h30']  = dnn(X_data, y_data, kf, num_hidden=30)
-    results['DNN_h300'] = dnn(X_data, y_data, kf, num_hidden=300)
+    results['DNN_u30_h2']  = dnn(X_data, y_data, kf, num_units=30, num_hidden=2)
+    results['DNN_u30_h3']  = dnn(X_data, y_data, kf, num_units=30, num_hidden=3)
+    results['DNN_u300_h2'] = dnn(X_data, y_data, kf, num_units=300, num_hidden=2)
+    results['DNN_u300_h3'] = dnn(X_data, y_data, kf, num_units=300, num_hidden=3)
 
     name = "results/results_kfolds{}_v{}".format(kfolds,str(VERSION).zfill(2))
     np.save(name, results)
