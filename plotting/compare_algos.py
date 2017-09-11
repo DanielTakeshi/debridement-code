@@ -12,10 +12,41 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
 import numpy as np
 import sys
-np.set_printoptions(suppress=True, linewidth=200)
+np.set_printoptions(suppress=True, edgeitems=4, linewidth=200)
 
 
-def load_data(kfolds=10):
+def convert_to_quaternion(X_train):
+    """ Um ... is this a 3D --> 4D conversion? Yeah. I would just use this:
+
+    https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Source_Code
+
+    And copy the formula (convert from C++ to Python).
+    """
+    assert X_train.shape[1] == 6
+    X_train_q = np.zeros((X_train.shape[0],7)) # Have 7 columns...
+    X_train_q[:,:3] = X_train[:,:3].copy()
+
+    # The Wiki page does Yaw, Roll, then Pitch (so not Pitch, then Roll).
+    cy = np.cos(X_train[:,3] * 0.5)
+    sy = np.sin(X_train[:,3] * 0.5)
+    cr = np.cos(X_train[:,5] * 0.5)
+    sr = np.sin(X_train[:,5] * 0.5)
+    cp = np.cos(X_train[:,4] * 0.5)
+    sp = np.sin(X_train[:,4] * 0.5)
+
+    qw = (cy * cr * cp) + (sy * sr * sp)
+    qx = (cy * sr * cp) - (sy * cr * sp)
+    qy = (cy * cr * sp) + (sy * sr * cp)
+    qz = (sy * cr * cp) - (cy * sr * sp)
+
+    X_train_q[:,3] = qw
+    X_train_q[:,4] = qx
+    X_train_q[:,5] = qy
+    X_train_q[:,6] = qz
+    return X_train_q
+
+
+def load_data(kfolds=10, quaternion=False):
     """ Load the data for future usage. I call it `train` but it's really the
     full data.
     
@@ -24,9 +55,17 @@ def load_data(kfolds=10):
     call `for train, test in kf.split(X):` later, where `train, test` are the
     indices for the training and testing, respectively.
     """
-    X_train = np.load("data/X_train.npy")
-    X_mean  = np.load("data/X_mean.npy")
-    X_std   = np.load("data/X_std.npy")
+    if quaternion:
+        X_train = convert_to_quaternion(np.load("data/X_train.npy"))
+        X_mean  = np.mean(X_train, axis=0)
+        X_std   = np.std(X_train, axis=0)
+    else:
+        X_train = np.load("data/X_train.npy")
+        X_mean  = np.load("data/X_mean.npy")
+        X_std   = np.load("data/X_std.npy")
+
+    # In both cases, we want to _normalize_ the training data.
+    print("X_train (NOT normalized):\n{}".format(X_train))
     X_train = (X_train - X_mean) / X_std
     y_train = np.load("data/y_train.npy")
     print("X_train.shape: {}".format(X_train.shape))
@@ -69,7 +108,8 @@ def get_loss(y_valid, y_pred):
 def lin(X_data, y_data, kf):
     """ A linear mapping.
     
-    Should be worse than RFs and DNNs.
+    Should be worse than RFs and DNNs. Um, but it actually seems pretty good.
+    Interesting...
     """
     print("\n\nNOW DOING: LIN\n")
     all_stats = []
@@ -95,14 +135,14 @@ def lin(X_data, y_data, kf):
     return all_stats
 
 
-def rfs(X_data, y_data, kf, num_trees):
+def rfs(X_data, y_data, kf, num_trees, max_depth=None):
     """ We might as well see what happens with random forests as the Phase I
     algorithm.
     
     Basically the usual bleh.
     """
     print("\n\nNOW DOING: RFs\n")
-    print("num_trees: {}".format(num_trees))
+    print("num_trees: {}, max_depth: {}".format(num_trees, max_depth))
     all_stats = []
 
     for tt,(train, test) in enumerate(kf.split(X_data)):
@@ -110,7 +150,7 @@ def rfs(X_data, y_data, kf, num_trees):
                 X_data[train], X_data[test], y_data[train], y_data[test]
         stats = defaultdict(list)
 
-        regr = RandomForestRegressor(n_estimators=num_trees, max_depth=None)
+        regr = RandomForestRegressor(n_estimators=num_trees, max_depth=max_depth)
         regr.fit(X_train, y_train)
         y_pred = regr.predict(X_test)
         per_coord_err, per_coord_std = get_per_coord_errors(y_test, y_pred)
@@ -172,6 +212,7 @@ if __name__ == "__main__":
     VERSION = 0
     kfolds = 10
     X_data, y_data, kf = load_data(kfolds)
+    X_data_q, y_data_q, kf_q = load_data(kfolds, quaternion=True)
     results = {}
 
     # --------------------------------------------------------------------------
@@ -180,12 +221,17 @@ if __name__ == "__main__":
     # return, then `list[i]` contains statistics from trial i, where i is
     # zero-indexed.
     # --------------------------------------------------------------------------
-    results['Lin'] = lin(X_data, y_data, kf)
-    results['RFs_t10']   = rfs(X_data, y_data, kf, num_trees=10)
-    results['RFs_t100']  = rfs(X_data, y_data, kf, num_trees=100)
-    results['RFs_t1000'] = rfs(X_data, y_data, kf, num_trees=1000)
+    results['Lin']   = lin(X_data, y_data, kf)
+    results['Lin_Q'] = lin(X_data_q, y_data_q, kf_q)
+
+    results['RFs_t10_dN']   = rfs(X_data, y_data, kf, num_trees=10, max_depth=None)
+    results['RFs_t100_dN']  = rfs(X_data, y_data, kf, num_trees=100, max_depth=None)
+    results['RFs_t1000_dN'] = rfs(X_data, y_data, kf, num_trees=1000, max_depth=None)
+    results['RFs_t100_d10']  = rfs(X_data, y_data, kf, num_trees=100, max_depth=10)
+    results['RFs_t100_d100'] = rfs(X_data, y_data, kf, num_trees=100, max_depth=100)
+
     results['DNN_h30']  = dnn(X_data, y_data, kf, num_hidden=30)
     results['DNN_h300'] = dnn(X_data, y_data, kf, num_hidden=300)
 
-    name = "results_kfolds{}_v{}".format(kfolds,str(VERSION).zfill(2))
+    name = "results/results_kfolds{}_v{}".format(kfolds,str(VERSION).zfill(2))
     np.save(name, results)
