@@ -22,51 +22,51 @@ ticksize = 25
 
 
 def plot(results):
+    lin_mean = []
+    lin_std  = []
+    lin_keys = []
+    rfs_mean = []
+    rfs_std  = []
+    rfs_keys = []
+    dnn_mean = []
+    dnn_std  = []
+    dnn_keys = []
 
-    # Load the linear regression stuff.
-    means_lin = (
-            np.mean([ss['loss'] for ss in results['Lin']]),
-            np.mean([ss['loss'] for ss in results['Lin_Q']])
-    )
-    std_lin = (
-            np.std([ss['loss'] for ss in results['Lin']]),
-            np.std([ss['loss'] for ss in results['Lin_Q']])
-    )
-    print("means_lin: {}".format(means_lin))
-    print("std_lin: {}".format(std_lin))
+    for key in results.keys():
+        info = [ss['loss'] for ss in results[key]]
+        if 'Lin' in key:
+            lin_mean.append(np.mean(info))
+            lin_std.append(np.std(info))
+            lin_keys.append(key)
+        elif 'RFs' in key:
+            rfs_mean.append(np.mean(info))
+            rfs_std.append(np.std(info))
+            rfs_keys.append(key)
+        elif 'DNN' in key:
+            dnn_mean.append(np.mean(info))
+            dnn_std.append(np.std(info))
+            dnn_keys.append(key)
 
-    # Load the RF regression stuff.
-    means_rfs = (
-            np.mean([ss['loss'] for ss in results['RFs_t10_dN']]),
-            np.mean([ss['loss'] for ss in results['RFs_t100_dN']]),
-            np.mean([ss['loss'] for ss in results['RFs_t1000_dN']]),
-            np.mean([ss['loss'] for ss in results['RFs_t100_d10']]),
-            np.mean([ss['loss'] for ss in results['RFs_t100_d100']])
-    )
-    std_rfs = (
-            np.std([ss['loss'] for ss in results['RFs_t10_dN']]),
-            np.std([ss['loss'] for ss in results['RFs_t100_dN']]),
-            np.std([ss['loss'] for ss in results['RFs_t1000_dN']]),
-            np.std([ss['loss'] for ss in results['RFs_t100_d10']]),
-            np.std([ss['loss'] for ss in results['RFs_t100_d100']])
-    )
-    print("means_rfs: {}".format(means_rfs))
-    print("std_rfs: {}".format(std_rfs))
-
-    # Almost done ... load the DNN regression stuff.
-    means_dnn = (
-            np.mean([ss['loss'] for ss in results['DNN_h30']]),
-            np.mean([ss['loss'] for ss in results['DNN_h300']])
-    )
-    std_dnn = (
-            np.std([ss['loss'] for ss in results['DNN_h30']]),
-            np.std([ss['loss'] for ss in results['DNN_h300']])
-    )
-    print("means_dnn: {}".format(means_dnn))
-    print("std_dnn: {}".format(std_dnn))
+    print("\nmean_lin: {}".format(lin_mean))
+    print("std_lin:  {}".format(lin_std))
+    print("keys_lin: {}".format(lin_keys))
+    print("\nmean_rfs: {}".format(rfs_mean))
+    print("std_rfs:  {}".format(rfs_std))
+    print("keys_rfs: {}".format(rfs_keys))
+    print("\nmean_dnn: {}".format(dnn_mean))
+    print("std_dnn:  {}".format(dnn_std))
+    print("keys_dnn: {}".format(dnn_keys))
 
     # Gah! Now I can finally make the bar chart. I think it's easiest to have it
     # split across three different subplots, one per algorithm category.
+    pass
+
+
+def deprecated():
+    """ 
+    This is a deprecated method, only to show how to possibly combine these into
+    one plot. However, I find this unwieldly.
+    """
     fig, ax = plt.subplots()
     bar_width = 0.80
     opacity = 0.5
