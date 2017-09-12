@@ -5,11 +5,13 @@ don't do any plotting here. Save the data and then plot somewhere else.
 """
 
 from collections import defaultdict
-from keras.models import Sequential
+from keras.callbacks import EarlyStopping
 from keras.layers import Dense, Activation
+from keras.models import Sequential
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
+import argparse
 import numpy as np
 import sys
 np.set_printoptions(suppress=True, edgeitems=4, linewidth=200)
@@ -84,25 +86,22 @@ def load_data(kfolds=10, quaternion=False):
 
 
 def get_per_coord_errors(y_valid, y_pred):
-    """ Mean absolute errors, that is! """
-    abs_err = np.abs(y_valid - y_pred)
-    per_coord_err = np.mean(abs_err, axis=0)
-    per_coord_std = np.std(abs_err, axis=0)
-    assert len(per_coord_err) == 3 and len(per_coord_std) == 3
-    return per_coord_err, per_coord_std
+    """ MSE per coordinate. """
+    per_coord_mse = np.mean((y_valid-y_pred)*(y_valid-y_pred), axis=0)
+    per_coord_std =  np.std((y_valid-y_pred)*(y_valid-y_pred), axis=0)
+    assert len(per_coord_mse) == 3 and len(per_coord_std) == 3
+    return per_coord_mse, per_coord_std
 
 
-def get_loss(y_valid, y_pred):
-    """ The loss (really MSE) should be averages over the N rows for this since
-    the y_valid and y_pred are (N,dim), where dim=3 in our case.
-    
-    So we need one number for each ROW, and then we take the mean of that.
-    However, each ROW is itself a MSE. That's why I have to take an average
-    across rows.
+def get_avg_sq_l2_dist(y_valid, y_pred):
+    """ 
+    The loss. Just get squared L2 distance between all the N elements. Then take
+    an average. It's easier that way. Note that Keras actually computes a
+    further average over the 3 elements but this is the same monotonically ...
     """
     abs_errors_sq = (y_pred-y_valid)*(y_pred-y_valid) # (N,3)
-    mse_N = np.mean(abs_errors_sq, axis=1) # (N,)
-    return np.mean(mse_N)
+    squared_l2_distances_N = np.sum(abs_errors_sq, axis=1) # (N,)
+    return np.mean(squared_l2_distances_N)
 
 
 def lin(X_data, y_data, kf):
@@ -126,8 +125,9 @@ def lin(X_data, y_data, kf):
 
         stats['per_coord_err'] = per_coord_err
         stats['per_coord_std'] = per_coord_std
-        stats['loss'] = get_loss(y_test, y_pred)
-        print("(tt={}) final loss (mse): {:.4f}".format(tt, stats['loss']))
+        stats['loss'] = get_avg_sq_l2_dist(y_test, y_pred)
+        assert abs(np.sum(stats['per_coord_err']) - stats['loss']) < 0.0001
+        print("(tt={}) final loss (avg sq l2): {:.4f}".format(tt, stats['loss']))
         all_stats.append(stats)
 
     print("mean over folds: {:.4f}".format(
@@ -157,8 +157,9 @@ def rfs(X_data, y_data, kf, num_trees, max_depth=None):
 
         stats['per_coord_err'] = per_coord_err
         stats['per_coord_std'] = per_coord_std
-        stats['loss'] = get_loss(y_test, y_pred)
-        print("(tt={}) final loss (mse): {:.4f}".format(tt, stats['loss']))
+        stats['loss'] = get_avg_sq_l2_dist(y_test, y_pred)
+        assert abs(np.sum(stats['per_coord_err']) - stats['loss']) < 0.0001
+        print("(tt={}) final loss (avg sq l2): {:.4f}".format(tt, stats['loss']))
         all_stats.append(stats)
 
     print("mean over folds: {:.4f}".format(
@@ -166,17 +167,18 @@ def rfs(X_data, y_data, kf, num_trees, max_depth=None):
     return all_stats
 
 
-def dnn(X_data, y_data, kf, num_units, num_hidden):
+def dnn(X_data, y_data, kf, num_units, num_hidden, nonlin):
     """ Pray that this has best performance because then it's like I'm
     retroactively justifying my claims. :-)
     
     Uses a DNN with Keras. 
     """
     print("\n\nNOW DOING: DNN\n")
-    print("num_hidden: {}, num_units: {}".format(num_hidden, num_units))
+    print("num_hidden: {}, num_units: {}, nonlin: {}".format(
+        num_hidden, num_units, nonlin))
     all_stats = []
-    batch_size = 32
-    epochs = 100
+    batch_size = 64
+    epochs = 5000
 
     for tt,(train, test) in enumerate(kf.split(X_data)):
         X_train, X_test, y_train, y_test = \
@@ -184,25 +186,31 @@ def dnn(X_data, y_data, kf, num_units, num_hidden):
         stats = defaultdict(list)
 
         model = Sequential()
-        model.add(Dense(num_units, activation='relu', input_dim=6))
+        model.add(Dense(num_units, activation=nonlin, input_dim=6))
         for _ in range(num_hidden-1):
-            model.add(Dense(num_units, activation='relu')) 
+            model.add(Dense(num_units, activation=nonlin)) 
         model.add(Dense(3, activation=None))
         model.compile(optimizer='adam', loss='mse')
         model.summary()
 
+        # Uses the validation set we provide, early stopping, etc.
+        #early_stopping = EarlyStopping(monitor='val_loss', patience=10)
         history = model.fit(X_train, y_train, 
                             verbose=0,
                             epochs=epochs, 
                             batch_size=batch_size, 
-                            validation_data=(X_test, y_test))
+                            #callbacks=[early_stopping],
+                            validation_data=(X_test,y_test))
         y_pred = model.predict(X_test)
         per_coord_err, per_coord_std = get_per_coord_errors(y_test, y_pred)
 
+        # Might as well collect all of the losses ...
+        stats['val_loss'] = history.history['val_loss']
         stats['per_coord_err'] = per_coord_err
         stats['per_coord_std'] = per_coord_std
-        stats['loss'] = get_loss(y_test, y_pred)
-        print("(tt={}) final loss (mse): {:.4f}".format(tt, stats['loss']))
+        stats['loss'] = get_avg_sq_l2_dist(y_test, y_pred)
+        assert abs(np.sum(stats['per_coord_err']) - stats['loss']) < 0.0001
+        print("(tt={}) final loss (avg sq l2): {:.4f}".format(tt, stats['loss']))
         all_stats.append(stats)
 
     print("mean over folds: {:.4f}".format(
@@ -210,12 +218,46 @@ def dnn(X_data, y_data, kf, num_units, num_hidden):
     return all_stats
 
 
+def do_johns_stuff(X_data, y_data, kf):
+    for tt,(train, test) in enumerate(kf.split(X_data)):
+        X_train, X_test, y_train, y_test = \
+                X_data[train], X_data[test], y_data[train], y_data[test]
+        model = Sequential()
+        model.add(Dense(20, activation='sigmoid', input_dim=6))
+        model.add(Dense(40, activation='sigmoid')) 
+        model.add(Dense(60, activation='sigmoid')) 
+        model.add(Dense(40, activation='sigmoid')) 
+        model.add(Dense(3, activation=None))
+        model.compile(optimizer='adam', loss='mse')
+        model.summary()
+        history = model.fit(X_train, y_train, 
+                            verbose=1,
+                            epochs=5000, 
+                            batch_size=64, 
+                            validation_data=(X_test,y_test))
+        y_pred = model.predict(X_test)
+        avg_sq_l2 = get_avg_sq_l2_dist(y_test, y_pred)
+        print("(tt={}) final loss (avg sq l2): {:.4f}".format(tt, avg_sq_l2))
+        per_coord_err = np.mean( (y_pred-y_test)**2, axis=0 )
+        print("mse per coord: {}".format(per_coord_err))
+        print("np.sum(per_coord_err): {}".format(np.sum(per_coord_err)))
+        sys.exit()
+
+
 if __name__ == "__main__":
-    VERSION = 0
-    kfolds = 10
-    X_data, y_data, kf = load_data(kfolds)
-    X_data_q, y_data_q, kf_q = load_data(kfolds, quaternion=True)
+    pp = argparse.ArgumentParser()
+    pp.add_argument('--version', type=int)
+    pp.add_argument('--kfolds', type=int, default=10)
+    args = pp.parse_args()
+    assert args.version is not None
+
+    VERSION = str(args.version).zfill(2)
+    X_data, y_data, kf = load_data(args.kfolds)
+    X_data_q, y_data_q, kf_q = load_data(args.kfolds, quaternion=True)
     results = {}
+
+    # Do John's stuff.
+    #do_johns_stuff(X_data, y_data, kf)
 
     # --------------------------------------------------------------------------
     # All these methods return a LIST _of_ dictionaries, so `results` is a
@@ -226,16 +268,26 @@ if __name__ == "__main__":
     results['Lin_EA'] = lin(X_data, y_data, kf)
     results['Lin_Q']  = lin(X_data_q, y_data_q, kf_q)
 
-    results['RFs_t10_dN']   = rfs(X_data, y_data, kf, num_trees=10, max_depth=None)
-    results['RFs_t100_dN']  = rfs(X_data, y_data, kf, num_trees=100, max_depth=None)
-    results['RFs_t1000_dN'] = rfs(X_data, y_data, kf, num_trees=1000, max_depth=None)
+    results['RFs_t10_dN']    = rfs(X_data, y_data, kf, num_trees=10, max_depth=None)
+    results['RFs_t100_dN']   = rfs(X_data, y_data, kf, num_trees=100, max_depth=None)
+    results['RFs_t1000_dN']  = rfs(X_data, y_data, kf, num_trees=1000, max_depth=None)
+    results['RFs_t1000_d10'] = rfs(X_data, y_data, kf, num_trees=1000, max_depth=10)
     results['RFs_t100_d10']  = rfs(X_data, y_data, kf, num_trees=100, max_depth=10)
     results['RFs_t100_d100'] = rfs(X_data, y_data, kf, num_trees=100, max_depth=100)
 
-    results['DNN_u30_h2']  = dnn(X_data, y_data, kf, num_units=30, num_hidden=2)
-    results['DNN_u30_h3']  = dnn(X_data, y_data, kf, num_units=30, num_hidden=3)
-    results['DNN_u300_h2'] = dnn(X_data, y_data, kf, num_units=300, num_hidden=2)
-    results['DNN_u300_h3'] = dnn(X_data, y_data, kf, num_units=300, num_hidden=3)
+    # For the neural network, we'll benchmark against a LOT of possibilities!
+    l_nonlin = ['sigmoid', 'tanh', 'relu']
+    l_units = [30, 300]
+    l_hlayers = [1, 2, 3]
 
-    name = "results/results_kfolds{}_v{}".format(kfolds,str(VERSION).zfill(2))
+    for units in l_units:
+        for hlayers in l_hlayers:
+            for nonlin in l_nonlin:
+                key = "DNN_u{}_h{}_{}".format(units, hlayers, nonlin)
+                results[key] = dnn(X_data, y_data, kf, 
+                                   num_units=units, 
+                                   num_hidden=hlayers,
+                                   nonlin=nonlin)
+
+    name = "results/results_kfolds{}_v{}".format(args.kfolds, VERSION)
     np.save(name, results)

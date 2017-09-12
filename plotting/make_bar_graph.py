@@ -3,6 +3,7 @@
 (c) September 2017 by Daniel Seita
 """
 
+import argparse
 from collections import defaultdict
 from keras.models import Sequential
 from keras.layers import Dense, Activation
@@ -15,8 +16,8 @@ np.set_printoptions(suppress=True, linewidth=200)
 
 # Some matplotlib settings.
 plt.style.use('seaborn-darkgrid')
-titlesize = 22
-labelsize = 18
+titlesize = 21
+labelsize = 17
 legendsize = 15
 ticksize = 15
 bar_width = 0.80
@@ -63,7 +64,7 @@ def deprecated():
     plt.savefig('figures/validation_set_results.png')
 
 
-def plot(results):
+def plot(results, vv):
     lin_mean = []
     lin_std  = []
     lin_keys = []
@@ -96,15 +97,22 @@ def plot(results):
     print("\nrfs_mean: {}".format(rfs_mean))
     print("rfs_std:  {}".format(rfs_std))
     print("rfs_keys: {}".format(rfs_keys))
-    print("\ndnn_mean: {}".format(dnn_mean))
-    print("dnn_std:  {}".format(dnn_std))
-    print("dnn_keys: {}".format(dnn_keys))
+    print("\nDNN results:")
+    for (mean,std,key) in zip(dnn_mean,dnn_std,dnn_keys):
+        print("{:.2f}\t{:.2f}\t{}".format(mean,std,key))
+    # sys.exit()
+    # Use this to determine which DNN models should be here.
+    dnn_threshold = 3.0
+    real_index = 0
+    for ii,(mean,std,key) in enumerate(zip(dnn_mean,dnn_std,dnn_keys)):
+        if mean > dnn_threshold:
+            continue
+        real_index += 1
 
     # Gah! Now I can finally make the bar chart. I think it's easiest to have it
     # split across three different subplots, one per algorithm category.
-    width_ratio = [len(lin_keys),len(rfs_keys),len(dnn_keys)]
-    fig, ax = plt.subplots(nrows=1,ncols=3, 
-                           figsize=(14,5),
+    width_ratio = [len(lin_keys),len(rfs_keys),real_index]
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(16,5),
                            gridspec_kw={'width_ratios':width_ratio})
 
     for ii,(mean,std,key) in enumerate(zip(lin_mean,lin_std,lin_keys)):
@@ -112,42 +120,53 @@ def plot(results):
                   alpha=opacity,
                   yerr=std,
                   error_kw=error_config,
-                  label=key)
+                  label=key[4:])
     for ii,(mean,std,key) in enumerate(zip(rfs_mean,rfs_std,rfs_keys)):
         ax[1].bar(np.array([ii]), mean, bar_width,
                   alpha=opacity,
                   yerr=std,
                   error_kw=error_config,
-                  label=key)
+                  label=key[4:])
+    real_index = 0
     for ii,(mean,std,key) in enumerate(zip(dnn_mean,dnn_std,dnn_keys)):
-        ax[2].bar(np.array([ii]), mean, bar_width,
+        if mean > dnn_threshold:
+            continue
+        ax[2].bar(np.array([real_index]), mean, bar_width,
                   alpha=opacity,
                   yerr=std,
                   error_kw=error_config,
-                  label=key)
+                  label=key[4:])
+        real_index += 1
 
     # Some rather tedious but necessary stuff to make it publication-quality.
-    ax[0].set_title('Linear Regression', fontsize=titlesize)
-    ax[1].set_title('RF Regression', fontsize=titlesize)
-    ax[2].set_title('DNN Regression', fontsize=titlesize)
-    ax[0].set_ylabel('Average MSE, 10-Fold CV', fontsize=labelsize)
+    ax[0].set_title('Linear', fontsize=titlesize)
+    ax[1].set_title('Random Forests', fontsize=titlesize)
+    ax[2].set_title('Deep Neural Networks', fontsize=titlesize)
+    ax[0].set_ylabel('Average Squared $L_2$, 10-Fold CV', fontsize=labelsize)
 
     for i in range(3):
         ax[i].set_xlabel('Algorithm', fontsize=labelsize)
-        ax[i].set_ylim([0.0,3.0])
+        ax[i].set_ylim([0.0,9.0])
         ax[i].tick_params(axis='y', labelsize=ticksize)
         ax[i].set_xticklabels([])
 
     ax[0].legend(loc="best", ncol=1, prop={'size':legendsize})
     ax[1].legend(loc="best", ncol=2, prop={'size':legendsize})
-    ax[2].legend(loc="best", ncol=2, prop={'size':legendsize})
+    ax[2].legend(loc="best", ncol=3, prop={'size':legendsize})
 
     plt.tight_layout()
-    plt.savefig('figures/validation_set_results.png')
+    plt.savefig('figures/validation_set_results_v'+vv+'.png')
 
 
 if __name__ == "__main__":
-    file_name = 'results/results_kfolds10_v00.npy'
+    pp = argparse.ArgumentParser()
+    pp.add_argument('--version', type=int)
+    pp.add_argument('--kfolds', type=int, default=10)
+    args = pp.parse_args()
+    assert args.version is not None
+
+    VERSION = str(args.version).zfill(2)
+    file_name = 'results/results_kfolds10_v'+VERSION+'.npy'
     results = np.load(file_name)[()]
     print("results has keys: {}".format(results.keys()))
-    plot(results)
+    plot(results, VERSION)
