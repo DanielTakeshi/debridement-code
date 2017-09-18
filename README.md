@@ -1,4 +1,15 @@
-(Note: this is Daniel Seita's personal repository built on top of Sanjay's skeleton. I also copied in Sanjay's DDCO code in its own folder.)
+# Debridement
+
+This contains source code for autonomated surgical debridement.
+
+The code corresponds to a paper under review at ICRA 2018. An arXiv version will be coming soon.
+
+Supplemental website with videos: https://sites.google.com/view/calib-icra/
+
+
+
+(The following text was written by Sanjay Krishnan.)
+
 
 # davinci-skeleton
 
