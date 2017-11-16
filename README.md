@@ -2,9 +2,9 @@
 
 This contains source code for autonomated surgical debridement.
 
-The code corresponds to a paper under review at ICRA 2018. An arXiv version will be coming soon.
-
 Supplemental website with videos: https://sites.google.com/view/calib-icra/
+
+arXiv: https://arxiv.org/abs/1709.06668
 
 
 
