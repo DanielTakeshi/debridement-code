@@ -6,6 +6,16 @@ Supplemental website with videos: https://sites.google.com/view/calib-icra/
 
 arXiv: https://arxiv.org/abs/1709.06668
 
+Update: The paper has been accepted to ICRA 2018. If you find the code or the paper useful, please consider citing:
+
+```
+@inproceedings{seita_icra_2018,
+    author = {Daniel Seita and Sanjay Krishnan and Roy Fox and Stephen McKinley and John Canny and Kenneth Goldberg},
+    title = {{Fast and Reliable Autonomous Surgical Debridement with Cable-Driven Robots Using a Two-Phase Calibration Procedure}},
+    Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+    Year = {2018}
+}
+```
 
 
 (The following text was written by Sanjay Krishnan.)
