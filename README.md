@@ -1,27 +1,13 @@
 # Debridement
 
-This contains source code for autonomated surgical debridement.
+This contains source code for autonomated surgical debridement for our ICRA 2018 paper.
 
-Supplemental website with videos: https://sites.google.com/view/calib-icra/
+- Supplemental website with videos: https://sites.google.com/view/calib-icra/
+- arXiv: https://arxiv.org/abs/1709.06668
 
-arXiv: https://arxiv.org/abs/1709.06668
+# General Structure (davinci-skeleton)
 
-Update: The paper has been accepted to ICRA 2018. If you find the code or the paper useful, please consider citing:
-
-```
-@inproceedings{seita_icra_2018,
-    author = {Daniel Seita and Sanjay Krishnan and Roy Fox and Stephen McKinley and John Canny and Kenneth Goldberg},
-    title = {{Fast and Reliable Autonomous Surgical Debridement with Cable-Driven Robots Using a Two-Phase Calibration Procedure}},
-    Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
-    Year = {2018}
-}
-```
-
-
-(The following text was written by Sanjay Krishnan.)
-
-
-# davinci-skeleton
+(By [Sanjay Krishnan](http://sanjayk.io/?src=%2F~skr%2F))
 
 The base directory structure for da Vinci utilities. This repository defines the basic structure and utilities
 for the Da Vinci surgical robot in the AUTOLAB at UC Berkeley.
@@ -143,11 +129,15 @@ It logs all standard error and out to a temporary directory and prints out the P
 
 
 
+# Citation
 
+If you find the code or the paper useful, please consider citing:
 
-
-
-
-
-
-
+```
+@inproceedings{seita_icra_2018,
+    author = {Daniel Seita and Sanjay Krishnan and Roy Fox and Stephen McKinley and John Canny and Kenneth Goldberg},
+    title = {{Fast and Reliable Autonomous Surgical Debridement with Cable-Driven Robots Using a Two-Phase Calibration Procedure}},
+    Booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+    Year = {2018}
+}
+```
